@@ -1,0 +1,147 @@
+services:
+  traefik:
+    image: traefik:v2.5
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:8100"
+      - "--entrypoints.dashboard.address=:8200"
+    ports:
+      - "8100:8100"
+      - "8200:8200"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - marly_default
+
+  integrations:
+    build:
+      context: .
+      dockerfile: application/integrations/Dockerfile
+    volumes:
+      - ${PWD}/common:/app/common
+      - ${PWD}/application/integrations:/app/application/integrations
+      - ${PWD}/example_files:/app/example_files
+    env_file: .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONPATH=/app
+    depends_on:
+      - redis
+    networks:
+      - marly_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.integrations.rule=PathPrefix(`/integrations`)"
+      - "traefik.http.services.integrations.loadbalancer.server.port=8000"
+
+  configuration:
+    build:
+      context: .
+      dockerfile: application/configuration/Dockerfile
+    volumes:
+      - ${PWD}/common:/app/common
+      - ${PWD}/application/configuration:/app/application/configuration
+    env_file: .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONPATH=/app
+    networks:
+      - marly_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.configuration.rule=PathPrefix(`/configuration`)"
+      - "traefik.http.services.configuration.loadbalancer.server.port=8001"
+
+  orchestration:
+    build:
+      context: .
+      dockerfile: application/orchestration/Dockerfile
+    volumes:
+      - ${PWD}/common:/app/common
+      - ${PWD}/application/orchestration:/app/application/orchestration
+    env_file: .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONPATH=/app
+    depends_on:
+      - redis
+    networks:
+      - marly_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.orchestration.rule=PathPrefix(`/orchestration`)"
+      - "traefik.http.services.orchestration.loadbalancer.server.port=8002"
+
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - marly_default
+
+  extraction_worker:
+    build:
+      context: .
+      dockerfile: application/worker/extraction/Dockerfile
+    volumes:
+      - ${PWD}/common:/app/common
+      - ${PWD}/application/worker/extraction:/app/application/worker/extraction
+      - ${PWD}/example_files:/app/example_files
+    env_file: .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONPATH=/app
+    depends_on:
+      - redis
+    networks:
+      - marly_default
+
+  transformation_worker:
+    build:
+      context: .
+      dockerfile: application/worker/transformation/Dockerfile
+    volumes:
+      - ${PWD}/common:/app/common
+      - ${PWD}/application/worker/transformation:/app/application/worker/transformation
+    env_file: .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONPATH=/app
+    depends_on:
+      - redis
+    networks:
+      - marly_default
+
+  loading_worker:
+    build:
+      context: .
+      dockerfile: application/worker/loading/Dockerfile
+    volumes:
+      - ${PWD}/common:/app/common
+      - ${PWD}/application/worker/loading:/app/application/worker/loading
+    env_file: .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONPATH=/app
+    depends_on:
+      - redis
+    networks:
+      - marly_default
+
+networks:
+  marly_default:
+    name: marly_default
+
+volumes:
+  redis_data:

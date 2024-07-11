@@ -1,0 +1,10 @@
+uvicorn
+fastapi
+redis
+pydantic
+pdfminer.six
+PyPDF2
+pymupdf
+openpyxl
+pandas
+pymupdf4llm

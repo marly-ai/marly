@@ -1,0 +1,14 @@
+redis
+pydantic
+fastapi
+boto3
+openpyxl
+pandas
+pdfminer.six
+PyPDF2
+pymupdf
+pymupdf4llm
+PyMuPDF==1.23.8
+openai
+portkey-ai
+tenacity
