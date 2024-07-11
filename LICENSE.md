@@ -1,7 +1,5 @@
 # **Elastic License 2.0 (ELv2)**
 
-Copyright (c) 2024 Marly AI, Inc.
-
 # **Acceptance**
 
 By using the software, you agree to all of the terms and conditions below.
