@@ -7,7 +7,7 @@ from application.configuration.configs.normalization_config import Normalization
 import time
 import json
 import uuid
-# t
+
 def generate_config(column_locations, transformed_metrics_dict, output_data_source, output_filename, data_location):
     configs = []
     for column, start_cell in column_locations[data_location].items():
