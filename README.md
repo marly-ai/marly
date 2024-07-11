@@ -13,3 +13,5 @@ Build the Platform from Source
 ```
 docker-compose up --build
 ```
+
+Try it out by running one of the example_scripts from the example_scripts folder :)
