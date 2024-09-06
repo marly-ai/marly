@@ -54,7 +54,7 @@ def process_pdf(pdf_file):
         raise ValueError("Invalid task_id: task_id is None or empty")
     logging.debug(f"Task ID: {task_id}")
 
-    max_attempts = 20
+    max_attempts = 5
     attempt = 0
     while attempt < max_attempts:
         time.sleep(30)
