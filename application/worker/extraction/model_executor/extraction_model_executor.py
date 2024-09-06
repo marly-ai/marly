@@ -49,8 +49,6 @@ def run_extraction(file_name, keywords, file_list, input_data_source, prompts, m
     pdf_blob = data_source.read({"file_key": target_file_name})
     logger.info(f"PDF blob read from data source")
 
-    #page_numbers = {'pages': [4, 5, 6, 10, 11, 12, 13, 14]}
-    #page_numbers = {'pages': [4, 6]}
     page_numbers = get_relevant_page_numbers(prompts["PAGE_FINDER"], pdf_blob, formatted_keywords, model_instance, model_config.model_name)
     logger.info(f"Page numbers: {page_numbers}")
 
