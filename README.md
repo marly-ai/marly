@@ -70,14 +70,14 @@ To build the platform from source, run the following command:
 docker-compose up --build
 ```
 
-### Run an Example
+### Run an Example Extraction
 
 1. Navigate to the example scripts:
    ```bash
    cd example_scripts
    ```
 
-2. Run an example:
+2. Run the example extraction script:
    ```bash
    python example_script.py
    ```
@@ -86,7 +86,7 @@ docker-compose up --build
 
 ## 📚 Documentation
 
-For more detailed information, please refer to our [documentation](docs.marly.ai).
+For more detailed information, please refer to our [documentation](https://docs.marly.ai).
 
 ---
 
