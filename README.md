@@ -20,13 +20,13 @@ A set of key-value pairs that describes what needs to be extracted from a partic
 
 # Example Usecases
 ---
-Financial Report Analysis Agent
+Financial Report Analysis Agent: 
 Marly processes quarterly PDF reports, extracting key financial metrics using a predefined schema. This structured data enables the agent to easily generate comparative analyses and populate financial databases without manual data entry.
 
-Customer Feedback Processing Agent
+Customer Feedback Processing Agent: 
 Marly extracts relevant fields from various document types (Word, emails, surveys) using a customer feedback schema. This streamlines the agent's ability to categorize feedback, update CRM databases, and generate product team reports automatically.
 
-Research Assistant Agent
+Research Assistant Agent: 
 Marly processes research papers and reports, extracting methodologies, findings, and conclusions based on a research-oriented schema. This structured information forms a searchable knowledge base that can be loaded into any database, allowing the agent to efficiently answer complex research questions and generate comprehensive summaries.
 
 
