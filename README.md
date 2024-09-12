@@ -2,7 +2,7 @@
 
 # Marly
 
-*Transform unstructured documents into structured data with with a Single API Call*
+*Transform unstructured documents into structured data with with a single api call*
 
 [Features](#-features) • [What is a Schema?](#-what-is-a-schema) • [Use Cases](#-use-cases) • [Getting Started](#-getting-started) • [Documentation](#-documentation)
 
