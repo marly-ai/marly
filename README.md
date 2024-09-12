@@ -1,6 +1,6 @@
 # Marly
 
-A schema based document retrieval service for agents that leverages language models for the structuring of unstructured data. Our goal is to help you structure relevant data points from documents like a PDF, PPT or WRD doc from any source for usage in any downstream agentic operation (i.e loading into a database, making an API call, provide context for complex RAG) without the use of a vector database etc). With Marly, you can extract any number of schemas from any number of documents with a single API call making it easier to building Mult-Step Agent Workflows with Unstructured Documents.
+Marly is a schema-based document retrieval service designed to help you efficiently structure data from various documents like PDFs, PowerPoints, or Word files. By leveraging advanced language models, Marly transforms unstructured data into organized, structured information that you can easily use in any downstream operation, such as loading into a database, making API calls, or providing context for complex Q&A tasks. All this is done without needing a vector database. With Marly, you can extract data based on multiple schemas from numerous documents with just one API call, simplifying the process of building multi-step workflows with unstructured documents.
 
 # What is a Schema?
 ---
@@ -18,7 +18,19 @@ A set of key-value pairs that describes what needs to be extracted from a partic
 }
 ```
 
-# How to Run
+# Example Usecases
+---
+Financial Report Analysis Agent
+Marly processes quarterly PDF reports, extracting key financial metrics using a predefined schema. This structured data enables the agent to easily generate comparative analyses and populate financial databases without manual data entry.
+
+Customer Feedback Processing Agent
+Marly extracts relevant fields from various document types (Word, emails, surveys) using a customer feedback schema. This streamlines the agent's ability to categorize feedback, update CRM databases, and generate product team reports automatically.
+
+Research Assistant Agent
+Marly processes research papers and reports, extracting methodologies, findings, and conclusions based on a research-oriented schema. This structured information forms a searchable knowledge base that can be loaded into any database, allowing the agent to efficiently answer complex research questions and generate comprehensive summaries.
+
+
+# How do you run the service? 
 ---
 Build the Platform from Source
 ```
