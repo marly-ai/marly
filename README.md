@@ -69,6 +69,8 @@ To build the platform from source, run the following command:
 ```
 docker-compose up --build
 ```
+---
+
 
 ### Run an Example Extraction
 
