@@ -1,10 +1,30 @@
+<div align="center">
+
 # Marly
 
-Marly is a schema-based document retrieval service designed to help you efficiently structure data from various documents like PDFs, PowerPoints, or Word files. By leveraging language models, Marly transforms unstructured data into organized, structured information that you can easily use in any downstream operation, such as loading into a database, making API calls, or providing context for complex Q&A tasks in your agentic workflows. In addition, you can extract data based on multiple schemas from numerous documents with just one API call, simplifying the process of building multi-step workflows with unstructured documents without a vector database. 
+*Transform unstructured documents into structured data with with a Single API Call*
 
-# What is a Schema?
+[Features](#-features) • [What is a Schema?](#-what-is-a-schema) • [Use Cases](#-use-cases) • [Getting Started](#-getting-started) • [Documentation](#-documentation)
+
+</div>
+
 ---
-A set of key-value pairs that describes what needs to be extracted from a particular document (JSON).
+
+## 🚀 Features
+
+- 📄 Transform unstructured data into organized, structured information
+- 🔍 Extract data based on multiple schemas from numerous documents with a single API call
+- 🔄 Simplify multi-step agentic workflows with unstructured documents without a vector database
+
+---
+
+## 🧰 What is a Schema?
+
+A schema is a set of key-value pairs describing what needs to be extracted from a particular document (JSON format).
+
+<details>
+<summary>📋 Example Schema</summary>
+
 ```
 {
     "Firm": "The name of the firm",
@@ -18,23 +38,66 @@ A set of key-value pairs that describes what needs to be extracted from a partic
 }
 ```
 
-# Example Usecases
+</details>
+
+</details>
+
 ---
-Financial Report Analysis Agent: 
-Marly processes quarterly PDF reports, extracting key financial metrics using a predefined schema. This structured data enables the agent to easily generate comparative analyses and populate financial databases without manual data entry.
 
-Customer Feedback Processing Agent: 
-Marly extracts relevant fields from various document types (Word, emails, surveys) using a customer feedback schema. This streamlines the agent's ability to categorize feedback, update CRM databases, and generate product team reports automatically.
+## 🎯 Use Cases
 
-Research Assistant Agent: 
-Marly processes research papers and reports, extracting methodologies, findings, and conclusions based on a research-oriented schema. This structured information forms a searchable knowledge base that can be loaded into any database, allowing the agent to efficiently answer complex research questions and generate comprehensive summaries.
+<table>
+  <tr>
+    <td align="center"><b>💼 Financial Report Analysis</b></td>
+    <td align="center"><b>📊 Customer Feedback Processing</b></td>
+    <td align="center"><b>🔬 Research Assistant</b></td>
+  </tr>
+  <tr>
+    <td>Extract key financial metrics from quarterly PDF reports</td>
+    <td>Categorize feedback from various document types</td>
+    <td>Process research papers, extracting methodologies and findings</td>
+  </tr>
+</table>
 
-
-# How do you run the service? 
 ---
-Build the Platform from Source
+
+## 🛠️ Getting Started
+
+### Build the Platform
+---
+To build the platform from source, run the following command:
 ```
 docker-compose up --build
 ```
 
-Try it out by running one of the example_scripts from the example_scripts folder :)
+### Run an Example
+
+1. Navigate to the example scripts:
+   ```bash
+   cd example_scripts
+   ```
+
+2. Run an example:
+   ```bash
+   python example_script.py
+   ```
+
+---
+
+## 📚 Documentation
+
+For more detailed information, please refer to our [documentation](docs.marly.ai).
+
+---
+
+<div align="center">
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](link-to-contributing-guide) for more details.
+
+## 📄 License
+
+This project is licensed under the [Elastic License 2.0 (ELv2)](https://www.elastic.co/licensing/elastic-license).
+
+</div>
