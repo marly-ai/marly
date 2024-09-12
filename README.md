@@ -90,7 +90,7 @@ For more detailed information, please refer to our [documentation](https://docs.
 
 ---
 
-<div align="center">
+<div align="left">
 
 ## 🤝 Contributing
 
