@@ -4,7 +4,7 @@ A schema based document retrieval service for agents that leverages language mod
 
 # What is a Schema?
 ---
-A set of key-value pairs that describe what needs to be extracted from a particular document (JSON).
+A set of key-value pairs that describes what needs to be extracted from a particular document (JSON).
 ```
 {
     "Firm": "The name of the firm",
