@@ -1,6 +1,6 @@
 # Marly
 
-Marly is a schema-based document retrieval service designed to help you efficiently structure data from various documents like PDFs, PowerPoints, or Word files. By leveraging advanced language models, Marly transforms unstructured data into organized, structured information that you can easily use in any downstream operation, such as loading into a database, making API calls, or providing context for complex Q&A tasks in your agentic workflows. All this is done without needing a vector database. With Marly, you can extract data based on multiple schemas from numerous documents with just one API call, simplifying the process of building multi-step workflows with unstructured documents.
+Marly is a schema-based document retrieval service designed to help you efficiently structure data from various documents like PDFs, PowerPoints, or Word files. By leveraging language models, Marly transforms unstructured data into organized, structured information that you can easily use in any downstream operation, such as loading into a database, making API calls, or providing context for complex Q&A tasks in your agentic workflows. All this is done without needing a vector database. With Marly, you can extract data based on multiple schemas from numerous documents with just one API call, simplifying the process of building multi-step workflows with unstructured documents.
 
 # What is a Schema?
 ---
