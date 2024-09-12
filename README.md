@@ -15,12 +15,6 @@ A set of key-value pairs that describe what needs to be extracted from a particu
     "% of Total Exposure": "The percentage of total exposure",
     "TVPI": "Total Value to Paid-In multiple",
     "Net IRR": "Net Internal Rate of Return as a percentage"
-}  OR
-
-{
-    "Author": "The authors first name and last name",
-    "Institution": "The company, school, or institution most closely related to the author",
-    "Email": "The authors email address"
 }
 ```
 
