@@ -48,9 +48,9 @@ A schema is a set of key-value pairs describing what needs to be extracted from 
 
 <table>
   <tr>
-    <td align="center"><b>💼 Financial Report Analysis</b></td>
-    <td align="center"><b>📊 Customer Feedback Processing</b></td>
-    <td align="center"><b>🔬 Research Assistant</b></td>
+    <td align="center"><b>💼 Financial Report Analysis Agent</b></td>
+    <td align="center"><b>📊 Customer Feedback Processing Agent</b></td>
+    <td align="center"><b>🔬 Research Assistant Agent</b></td>
   </tr>
   <tr>
     <td>Extract key financial metrics from quarterly PDF reports</td>
