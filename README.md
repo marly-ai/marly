@@ -14,7 +14,7 @@
 
 - 📄 Give your agents the ability to transform unstructured data into organized, structured information
 - 🔍 Extract data based on multiple schemas from numerous documents with a single API call
-- 🔄 Simplify multi-step agentic workflows with unstructured documents without a vector database
+- 🔄 Simplify multi-step agentic workflows that use unstructured documents without a vector database
 
 ---
 
