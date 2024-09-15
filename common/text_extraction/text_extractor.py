@@ -1,164 +1,89 @@
+import PyPDF2
+from typing import List
+from io import BytesIO
+import logging
+from dotenv import load_dotenv
+from langchain.schema import SystemMessage, HumanMessage
+from langsmith import Client
+import asyncio
+import time
 import fitz
 from concurrent.futures import ThreadPoolExecutor
-import re
-import tempfile
-import base64
-import logging
-from common.observability.observability_decorator import observability
-from dotenv import load_dotenv
-import os
+from common.prompts.prompt_enums import PromptType
 
 load_dotenv()
 
-global OBSERVABILITY_PROVIDER
-OBSERVABILITY_PROVIDER = os.getenv('OBSERVABILITY_PROVIDER', '')
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def extract_text_pymupdf(pdf_content, page_number):
-    page_number -= 1
-    with fitz.open(stream=pdf_content, filetype="pdf") as doc:
-        page = doc.load_page(page_number)
-        text = page.get_text()
-        if not text.strip():
-            raise ValueError(f"Page {page_number + 1} does not contain text or is not recognized as a text page.")
-    return text
-
-def encode_image(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode("utf-8")
-
-def pdf_page_to_image(pdf_content, page_number):
-    with fitz.open(stream=pdf_content, filetype="pdf") as doc:
-        page = doc.load_page(page_number - 1)
-        pix = page.get_pixmap()
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_image:
-            pix.save(temp_image.name)
-            base64_image = encode_image(temp_image.name)
-    return base64_image
-
-@observability(OBSERVABILITY_PROVIDER)
-def check_page_with_llm_image(prompt_config, formatted_search_terms, encoded_image, model_instance, model_name):
-    return model_instance.do_completion(
-        prompt_config=prompt_config,
-        model_name=model_name,
-        first_value=formatted_search_terms,
-        second_value=encoded_image
-    )
-
-def process_page(args):
-    prompt_config, pdf_content, formatted_search_terms, i, model_instance, model_name = args
+def get_pdf_page_count(pdf_stream):
     try:
-        encoded_image = pdf_page_to_image(pdf_content, i + 1)
-        response = check_page_with_llm_image(prompt_config, formatted_search_terms, encoded_image, model_instance, model_name)
-        logger.info(f"Response for page {i + 1}: {response}")
-        if "yes" in response.lower():
-            return i + 1
-    except Exception as e:
-        logger.error(f"Error processing page {i + 1}: {e}")
-    return None
-
-def find_common_pages(file_blob, formatted_keywords, prompt_config, model_instance, model_name):
-    # Convert the stream to bytes
-    if hasattr(file_blob, 'read'):
-        pdf_content = file_blob.read()
-    else:
-        pdf_content = file_blob
-
-    with fitz.open(stream=pdf_content, filetype="pdf") as doc:
-        num_pages = len(doc)
-
-    common_pages = []
-    max_pages_to_process = min(num_pages - 1, 25)
-    logger.debug(f"Processing {max_pages_to_process} pages")
-
-    def process_single_page(i):
-        return process_page((prompt_config, pdf_content, formatted_keywords, i, model_instance, model_name))
-
-    with ThreadPoolExecutor() as executor:
-        results = list(executor.map(process_single_page, range(1, max_pages_to_process + 1)))
-
-    for result in results:
-        if result:
-            common_pages.append(result)
-
-    return common_pages if common_pages else None
-
-def extract_page_as_markdown(pdf_content, page_number):
+        pdf_reader = PyPDF2.PdfReader(pdf_stream)
+        return len(pdf_reader.pages)
+    except PyPDF2.errors.PdfReadError as e:
+        raise PyPDF2.errors.PdfReadError(f"Error reading PDF file: {str(e)}")
+    
+def extract_page_as_markdown(pdf_stream: BytesIO, page_number: int) -> str:
     page_number -= 1
-    with fitz.open(stream=pdf_content, filetype="pdf") as doc:
+    with fitz.open(stream=pdf_stream, filetype="pdf") as doc:
         page = doc.load_page(page_number)
         markdown_text = page.get_text("markdown")
         if not markdown_text.strip():
             raise ValueError(f"Page {page_number + 1} does not contain any content.")
     return markdown_text
 
-def extract_pages_as_markdown(pdf_content, page_numbers):
-    def process_page(page_number):
-        return extract_page_as_markdown(pdf_content, page_number)
-
-    results = {}
-    with ThreadPoolExecutor() as executor:
-        future_to_page = {executor.submit(process_page, page_number): page_number for page_number in page_numbers}
-        for future in future_to_page:
-            page_number = future_to_page[future]
-            try:
-                results[page_number] = future.result(timeout=5)
-            except TimeoutError:
-                results[page_number] = "TimeoutError: Processing took too long."
-            except Exception as exc:
-                results[page_number] = str(exc)
-
-    return results
-
-def metric_in_text(metric, text):
-    if " " in metric:
-        pattern = ".*".join(re.escape(word) for word in metric.split())
-        return re.search(pattern, text, re.DOTALL) is not None
-    else:
-        return metric in text
-
-def find_common_pages_old(pdf_content, search_terms):
-    metrics_pages = {metric: set() for metric in search_terms}
-
-    with fitz.open(stream=pdf_content, filetype="pdf") as doc:
-        num_pages = len(doc)
-
-        for i in range(num_pages):
-            try:
-                text_pymupdf = extract_text_pymupdf(pdf_content, i + 1)
-                
-                for metric in search_terms:
-                    if metric_in_text(metric, text_pymupdf):
-                        metrics_pages[metric].add(i + 1)
-            except ValueError:
-                continue
-    
-    page_metric_count = {}
-    for metric, pages in metrics_pages.items():
-        for page in pages:
-            if page not in page_metric_count:
-                page_metric_count[page] = set()
-            page_metric_count[page].add(metric)
-
-    coverage = {page: len(metrics) for page, metrics in page_metric_count.items()}
-    sorted_pages = sorted(coverage.items(), key=lambda item: item[1], reverse=True)
-
-    max_coverage = sorted_pages[0][1] if sorted_pages else 0
-    ranked_pages = [page for page, cov in sorted_pages if cov == max_coverage]
-
-    return ranked_pages if ranked_pages else []
-
-def extract_markdown(pdf_content, page_number):
+def process_page(client, prompt, page_number: int, page_text: str, formatted_keywords: str) -> int:
     try:
-        markdown_text = extract_page_as_markdown(pdf_content, page_number)
-        if not markdown_text.strip():
-            logger.warning(f"Page {page_number} does not contain any text or is not recognized as a text document.")
-            raise ValueError(f"Page {page_number} does not contain any text or is not recognized as a text document.")
+        raw_payload = prompt.invoke({"first_value": page_text, "second_value": formatted_keywords})
         
-        logger.debug(f"Successfully extracted markdown from page {page_number}")
-        return markdown_text.strip()
+        messages = []
+        if hasattr(raw_payload, 'to_messages'):
+            for message in raw_payload.to_messages():
+                if isinstance(message, SystemMessage):
+                    messages.append({"role": "system", "content": message.content})
+                elif isinstance(message, HumanMessage):
+                    messages.append({"role": "user", "content": message.content})
+                else:
+                    logger.warning(f"Unexpected message type: {type(message)}")
+        else:
+            logger.warning(f"Unexpected raw_payload format for page {page_number}: {type(raw_payload)}")
+        
+        if messages:
+            response = client.do_completion(messages)
+            if isinstance(response, str) and "yes" in response.lower():
+                logger.info(f"Page {page_number} is relevant according to the model")
+                return page_number
     except Exception as e:
-        logger.error(f"Error extracting markdown from page {page_number}: {str(e)}")
-        raise
+        logger.error(f"Error processing page {page_number}: {e}")
+    
+    return -1
+
+async def find_common_pages(client, file_stream: BytesIO, formatted_keywords: str) -> List[int]:
+    try:
+        start_time = time.time()
+        pdf_reader = PyPDF2.PdfReader(file_stream)
+        langsmith_client = Client()
+        prompt = langsmith_client.pull_prompt(PromptType.RELEVANT_PAGE_FINDER.value)
+        logger.info(f"MODEL TYPE: {type(client)}")
+
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            tasks = []
+            for page_number in range(len(pdf_reader.pages)):
+                page_text = extract_page_as_markdown(file_stream, page_number)
+                task = loop.run_in_executor(executor, process_page, client, prompt, page_number, page_text, formatted_keywords)
+                tasks.append(task)
+
+            results = await asyncio.gather(*tasks)
+
+        relevant_pages = [page for page in results if page != -1]
+
+        end_time = time.time()
+        total_time = end_time - start_time
+        logger.info(f"Processed {len(pdf_reader.pages)} pages in {total_time:.2f} seconds")
+        logger.info(f"Relevant Pages: {relevant_pages}")
+        
+        return relevant_pages
+        
+    except Exception as e:
+        logger.error(f"Error finding common pages: {e}")
+        return []

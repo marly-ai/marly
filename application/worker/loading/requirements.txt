@@ -1,8 +1,0 @@
-fastapi
-pydantic
-redis
-uvicorn
-tenacity
-openpyxl
-boto3
-psycopg2-binary

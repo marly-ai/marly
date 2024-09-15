@@ -1,19 +1,24 @@
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 from common.models.base.base_model import BaseModel
 from common.models.enums.model_enums import OpenAIModelName
 from openai import OpenAI
+from langsmith import traceable
 
 class OpenaiModel(BaseModel):
-    def __init__(self, model_config) -> None:
-        if not model_config.api_key:
+    def __init__(self, api_key: str, model_name: str, additional_params: Dict[str, Any] = None):
+        if not api_key:
             raise ValueError("API key must be provided.")
-        self.api_key = model_config.api_key
-        self.model_name = self.validate_model_name(model_config.model_name)
-        self.base_url = None
+        self.api_key = api_key
+        
+        if not additional_params:
+            additional_params = {}
+        
+        self.model_name = self.validate_model_name(model_name)
+        self.base_url = additional_params.get('base_url')
         
         client_params = {'api_key': self.api_key}
-        if model_config.additional_params.get('base_url'):
-            self.base_url = model_config.additional_params.get('base_url')
+        if self.base_url:
+            client_params['base_url'] = self.base_url
         
         self.client = OpenAI(**client_params)
 
@@ -23,7 +28,8 @@ class OpenaiModel(BaseModel):
             return OpenAIModelName(model_name).value
         except ValueError:
             raise ValueError(f"Invalid model name. Allowed values are: {', '.join([m.value for m in OpenAIModelName])}")
-    
+
+    @traceable(run_type="llm")
     def do_completion(self,
                       messages: List[Dict[str, str]],
                       model_name: Optional[str] = None,
