@@ -1,0 +1,14 @@
+asyncio
+typing
+redis[hiredis]
+python-dotenv
+pydantic
+PyPDF2
+aiohttp
+openai
+groq
+langchain
+langchainhub
+langsmith
+pdfminer.six
+pymupdf
