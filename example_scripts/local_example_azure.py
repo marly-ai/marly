@@ -88,10 +88,10 @@ def process_pdf(pdf_file):
         results = get_pipeline_results(task_id)
         logging.debug(f"Poll attempt {attempt + 1}: Status - {results['status']}")
 
-        if results['status'] == 'Completed':
-            logging.debug(f"Pipeline completed with results: {results}")
-            return results
-        elif results['status'] == 'Failed':
+        if results['status'] == 'COMPLETED':
+            logging.debug(f"Pipeline completed with results: {results['results']}")
+            return results['results']
+        elif results['status'] == 'FAILED':
             logging.error(f"Error: {results.get('error_message', 'Unknown error')}")
             return None
 
