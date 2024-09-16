@@ -44,18 +44,25 @@ async def get_pipeline_results(task_id: str):
                     try:
                         result = json.loads(result_data)
                         if 'results' in result:
+                            logger.info(f"Adding results: {result['results']}")
                             results.extend(result['results'])
                     except json.JSONDecodeError as e:
                         logger.error(f"Failed to decode JSON result: {e}")
                         continue
             if b'total_run_time' in entry:
+                logger.info(f"Adding total run time: {entry[b'total_run_time']}")
                 total_run_time = entry[b'total_run_time']
             if b'status' in entry:
-                try:
-                    status = JobStatus(json.loads(entry[b'status']))
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to decode JSON status: {e}")
-                    continue
+                status_data = entry[b'status']
+                if status_data:
+                    try:
+                        status = status_data
+                        logger.info(f"Adding status: {status}")
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to decode JSON status: {e}")
+                        continue
+                else:
+                    logger.warning(f"Empty status field for task_id: {task_id}")
 
         return PipelineResult(
             task_id=task_id,
