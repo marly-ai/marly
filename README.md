@@ -2,7 +2,7 @@
 
 # Marly
 
-_The Unstructured Data Processor for Agents_
+_The Data Processor for Agents_
 
 [Features](#-features) • [What is a Schema?](#-what-is-a-schema) • [Use Cases](#-use-cases) • [Getting Started](#-getting-started) • [Documentation](#-documentation)
 
