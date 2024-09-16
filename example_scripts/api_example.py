@@ -57,7 +57,7 @@ def process_pdf(pdf_file):
     max_attempts = 5
     attempt = 0
     while attempt < max_attempts:
-        time.sleep(30)
+        time.sleep(35)
 
         results = get_pipeline_results(task_id)
         logging.debug(f"Poll attempt {attempt + 1}: Status - {results['status']}")
