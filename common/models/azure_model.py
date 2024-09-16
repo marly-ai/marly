@@ -1,27 +1,31 @@
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 from common.models.base.base_model import BaseModel
 from openai import AzureOpenAI
 from common.models.enums.model_enums import AzureModelName
+from langsmith import traceable
 
 class AzureModel(BaseModel):
-    def __init__(self, model_config) -> None:
-        if not model_config.api_key:
+    def __init__(self, api_key: str, model_name: str, additional_params: Dict[str, Any] = None):
+        if not api_key:
             raise ValueError("API key must be provided.")
-        self.api_key = model_config.api_key
+        self.api_key = api_key
         
-        self.api_version = model_config.additional_params.get("api_version")
+        if not additional_params:
+            additional_params = {}
+        
+        self.api_version = additional_params.get("api_version")
         if not self.api_version:
             raise ValueError("API version must be provided in additional_params.")
         
-        self.azure_endpoint = model_config.additional_params.get("azure_endpoint")
+        self.azure_endpoint = additional_params.get("azure_endpoint")
         if not self.azure_endpoint:
             raise ValueError("Azure endpoint must be provided in additional_params.")
         
-        self.azure_deployment = model_config.additional_params.get("azure_deployment")
+        self.azure_deployment = additional_params.get("azure_deployment")
         if not self.azure_deployment:
             raise ValueError("Azure deployment must be provided in additional_params.")
         
-        self.model_name = self.validate_model_name(model_config.model_name)
+        self.model_name = self.validate_model_name(model_name)
         
         self.client = AzureOpenAI(
             api_key=self.api_key,
@@ -37,6 +41,7 @@ class AzureModel(BaseModel):
         except ValueError:
             raise ValueError(f"Invalid model name. Allowed values are: {', '.join([m.value for m in AzureModelName])}")
 
+    @traceable(run_type="llm")
     def do_completion(self,
                       messages: List[Dict[str, str]],
                       model_name: Optional[str] = None,

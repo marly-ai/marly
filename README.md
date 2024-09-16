@@ -2,7 +2,7 @@
 
 # Marly
 
-*The Unstructured Data Processor for Agents*
+_The Unstructured Data Processor for Agents_
 
 [Features](#-features) • [What is a Schema?](#-what-is-a-schema) • [Use Cases](#-use-cases) • [Getting Started](#-getting-started) • [Documentation](#-documentation)
 
@@ -48,14 +48,16 @@ A schema is a set of key-value pairs describing what needs to be extracted from 
 
 <table>
   <tr>
-    <td align="center"><b>💼 Financial Report Analysis Agent</b></td>
-    <td align="center"><b>📊 Customer Feedback Processing Agent</b></td>
-    <td align="center"><b>🔬 Research Assistant Agent</b></td>
+    <td align="center"><b>💼 Financial Report Analysis</b></td>
+    <td align="center"><b>📊 Customer Feedback Processing</b></td>
+    <td align="center"><b>🔬 Research Assistant</b></td>
+    <td align="center"><b>🧠 Legal Contract Parsing</b></td>
   </tr>
   <tr>
     <td>Extract key financial metrics from quarterly PDF reports</td>
     <td>Categorize feedback from various document types</td>
     <td>Process research papers, extracting methodologies and findings</td>
+    <td>Extract key legal terms and conditions from contracts</td>
   </tr>
 </table>
 
@@ -64,24 +66,29 @@ A schema is a set of key-value pairs describing what needs to be extracted from 
 ## 🛠️ Getting Started
 
 ### Build the Platform
+
 ---
+
 To build the platform from source, run the following command:
+
 ```
 docker-compose up --build
 ```
----
 
+---
 
 ### Run an Example Extraction
 
 1. Navigate to the example scripts:
+
    ```bash
    cd example_scripts
    ```
 
 2. Run the example extraction script:
    ```bash
-   python example_script.py
+   python local_example_azure.py
+   python local_example_groq.py
    ```
 
 ---

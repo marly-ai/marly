@@ -1,0 +1,13 @@
+uvicorn
+fastapi
+redis[hiredis]
+pydantic
+PyPDF2
+groq
+openai
+langchain
+langchainhub
+python-dotenv
+langsmith
+pdfminer.six
+pymupdf

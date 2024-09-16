@@ -1,8 +1,0 @@
-fastapi
-pydantic
-redis
-uvicorn
-PyMuPDF
-openai
-portkey-ai
-tenacity

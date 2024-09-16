@@ -26,3 +26,7 @@ __init__.py
 # vim temporary files
 *~
 .*.sw?
+
+*/myenv
+*/venv
+.DS_Store
