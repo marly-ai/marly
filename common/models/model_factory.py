@@ -1,9 +1,10 @@
 import logging
-from typing import Dict, Any, Union
-from common.models.enums.model_enums import ModelType, OpenAIModelName, AzureModelName, GroqModelName
+from typing import Dict, Any
+from common.models.enums.model_enums import ModelType, OpenAIModelName, AzureModelName, GroqModelName, CerebrasModelName
 from common.models.openai_model import OpenaiModel
 from common.models.azure_model import AzureModel
 from common.models.groq_model import GroqModel
+from common.models.cerebras_model import CerebrasModel
 
 # Configure logging for this module
 logger = logging.getLogger(__name__)
@@ -32,7 +33,8 @@ class ModelFactory:
         required_params = {
             ModelType.AZURE: ["api_version", "azure_endpoint", "azure_deployment"],
             ModelType.OPENAI: [],
-            ModelType.GROQ: []   
+            ModelType.GROQ: [],
+            ModelType.CEREBRAS: []
         }
 
         missing_params = []
@@ -52,6 +54,9 @@ class ModelFactory:
         elif model_type_enum == ModelType.GROQ:
             GroqModelName(model_name)
             model_instance = GroqModel(**model_config)
+        elif model_type_enum == ModelType.CEREBRAS:
+            CerebrasModelName(model_name)
+            model_instance = CerebrasModel(**model_config)
         else:
             raise ValueError(f"Unsupported model type: {model_type_enum}")
 

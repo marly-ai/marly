@@ -4,6 +4,7 @@ class ModelType(Enum):
     OPENAI = "openai"
     AZURE = "azure"
     GROQ = "groq"
+    CEREBRAS = "cerebras"
 
 class OpenAIModelName(Enum):
     GPT_3_5_TURBO = "gpt-3.5-turbo"
@@ -31,3 +32,7 @@ class GroqModelName(Enum):
     META_LLAMA3_8B = "llama3-8b-8192"
     MIXTRAL_8X7B = "mixtral-8x7b-32768"
     WHISPER = "whisper-large-v3"
+
+class CerebrasModelName(Enum):
+    LLAMA_3_1_70B = "llama3.1-70b"
+    LLAMA_3_1_8B = "llama3.1-8b"
