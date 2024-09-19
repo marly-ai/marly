@@ -5,7 +5,7 @@ import logging
 import requests
 from dotenv import load_dotenv
 import os
-
+import time
 load_dotenv()
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -18,6 +18,11 @@ def read_and_encode_pdf(file_path):
         pdf_content = base64.b64encode(zlib.compress(file.read())).decode('utf-8')
     logging.debug(f"{file_path} read and encoded")
     return pdf_content
+
+def get_pipeline_results(task_id):
+    logging.debug(f"Fetching results for task ID: {task_id}")
+    response = requests.get(f"{BASE_URL}/pipelines/{task_id}")
+    return response.json()
 
 def process_pdf(pdf_file):
     pdf_content = read_and_encode_pdf(pdf_file)
@@ -69,6 +74,27 @@ def process_pdf(pdf_file):
         logging.error("Invalid task_id: task_id is None or empty")
         return
     logging.debug(f"Task ID: {task_id}")
+    
+    max_attempts = 5
+    attempt = 0
+    while attempt < max_attempts:
+        logging.debug(f"Waiting for pipeline to complete. Attempt {attempt + 1} of {max_attempts}")
+        time.sleep(30)
+
+        results = get_pipeline_results(task_id)
+        logging.debug(f"Poll attempt {attempt + 1}: Status - {results['status']}")
+
+        if results['status'] == 'COMPLETED':
+            logging.debug(f"Pipeline completed with results: {results['results']}")
+            return results['results']
+        elif results['status'] == 'FAILED':
+            logging.error(f"Error: {results.get('error_message', 'Unknown error')}")
+            return None
+
+        attempt += 1
+
+    logging.warning("Timeout: Pipeline execution took too long.")
+    return None
 
 if __name__ == "__main__":
     process_pdf(PDF_FILE_PATH)
