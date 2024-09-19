@@ -103,7 +103,7 @@ For more detailed information, please refer to our [documentation](https://docs.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](link-to-contributing-guide) for more details.
+We welcome contributions! Please see our [Contributing Guide](https://docs.marly.ai/contribute/contribute) for more details.
 
 ## 📄 License
 
