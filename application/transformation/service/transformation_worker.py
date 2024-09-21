@@ -98,7 +98,7 @@ async def update_job_status(
     status: JobStatus,
     result: Optional[str]
 ) -> None:
-    fields: Dict[str, Any] = {"status": status.value}
+    fields: Dict[str, Any] = {"status": json.dumps(status.value)}
     if result:
         fields["result"] = result
 

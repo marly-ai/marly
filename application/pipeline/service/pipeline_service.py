@@ -60,7 +60,7 @@ async def run_pipeline(customer_input: PipelineRequestModel):
     })
     await con.set("model-details", model_details_json)
 
-    pdf_hash = hashlib.sha256(json.dumps(customer_input.workloads).encode()).hexdigest()
+    pdf_hash = hashlib.sha256(json.dumps([w.dict() for w in customer_input.workloads]).encode()).hexdigest()
     cache_key = f"cache:{pdf_hash}"
     cached_hash = await con.get(cache_key)
     if cached_hash:
@@ -71,7 +71,7 @@ async def run_pipeline(customer_input: PipelineRequestModel):
 
     async def process_workload(index, workload_combo):
         try:
-            compressed_data = base64.b64decode(workload_combo['pdf_stream'])
+            compressed_data = base64.b64decode(workload_combo.pdf_stream)
             decompressed_pdf = zlib.decompress(compressed_data)
             
             pdf_cursor = BytesIO(decompressed_pdf)
@@ -87,7 +87,7 @@ async def run_pipeline(customer_input: PipelineRequestModel):
             await con.set(pdf_key, base64.b64encode(decompressed_pdf).decode())
             logger.info(f"PDF stored in Redis with key: {pdf_key} as base64 string")
 
-            schemas = [json.loads(schema) for schema in workload_combo['schemas']]
+            schemas = [json.loads(schema) for schema in workload_combo.schemas]
 
             task_payload = ExtractionRequestModel(
                 task_id=task_id,
@@ -144,26 +144,37 @@ async def get_pipeline_results(task_id: str):
         return {"error": "Failed to connect to Redis"}, 500
 
     try:
-        results = await get_results_from_stream(con, task_id)
-    except Exception as e:
-        logger.error(f"Failed to fetch results from stream: {e}")
-        return {"error": "Failed to fetch results from stream"}, 500
-
-    try:
         status_stream = await con.xrange(f"job-status:{task_id}")
     except Exception as e:
         logger.error(f"Failed to fetch job status: {e}")
         return {"error": "Failed to fetch job status"}, 500
 
-    last_entry = status_stream[-1] if status_stream else None
-    
-    if last_entry:
-        _, entry = last_entry
+    if not status_stream:
+        return {"error": "Task not found"}, 404
+
+    last_entry = status_stream[-1]
+    _, entry = last_entry
+
+    try:
         status = JobStatus(json.loads(entry['status']))
-        total_run_time = entry.get('total_run_time', 'N/A')
-    else:
+    except (json.JSONDecodeError, ValueError):
+        logger.error(f"Invalid status value: {entry['status']}")
         status = JobStatus.PENDING
-        total_run_time = "N/A"
+
+    total_run_time = entry.get('total_run_time', 'N/A')
+    
+    results = []
+    if 'result' in entry:
+        try:
+            result_data = json.loads(entry['result'])
+            if isinstance(result_data, dict) and 'results' in result_data:
+                results = result_data['results']
+            elif isinstance(result_data, list):
+                results = result_data
+            else:
+                results = [result_data]
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse result JSON: {entry['result']}")
 
     response = PipelineResult(
         task_id=task_id,
