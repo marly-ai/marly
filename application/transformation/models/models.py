@@ -32,4 +32,5 @@ class ModelDetails(BaseModel):
     provider_type: str
     provider_model_name: str
     api_key: str
+    markdown_mode: bool
     additional_params: Dict[str, str]
