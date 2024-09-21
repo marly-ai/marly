@@ -1,0 +1,173 @@
+openapi: 3.1.0
+info:
+  title: Pipeline API
+  description: API for running and retrieving results from data processing pipelines
+  version: 1.0.0
+
+paths:
+  /pipelines:
+    post:
+      summary: Run pipeline
+      description: Initiates a pipeline processing job for the given PDF and schemas.
+      operationId: runPipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineRequestModel"
+      responses:
+        "202":
+          description: Pipeline processing started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineResponseModel"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /pipelines/{task_id}:
+    get:
+      summary: Get pipeline results
+      description: Retrieves the results of a pipeline processing job.
+      operationId: getPipelineResults
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the pipeline task
+      responses:
+        "200":
+          description: Pipeline results retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineResult"
+        "404":
+          description: Task not found
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  schemas:
+    WorkloadItem:
+      type: object
+      properties:
+        pdf_stream:
+          type: string
+          format: base64
+          description: Base64 encoded and zlib compressed PDF content
+        schemas:
+          type: array
+          items:
+            type: string
+          description: JSON strings representing extraction schemas
+      required:
+        - pdf_stream
+        - schemas
+
+    PipelineRequestModel:
+      type: object
+      properties:
+        workloads:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkloadItem"
+          description: Array of workload objects containing PDF content and schemas
+        provider_type:
+          type: string
+          description: Type of AI provider (e.g., 'azure', 'openai')
+        provider_model_name:
+          type: string
+          description: Name of the AI model to use
+        api_key:
+          type: string
+          description: API key for the AI provider
+        additional_params:
+          type: object
+          additionalProperties: true
+          description: Additional parameters specific to the AI provider
+      required:
+        - workloads
+        - provider_type
+        - provider_model_name
+        - api_key
+
+    PipelineResponseModel:
+      type: object
+      properties:
+        task_id:
+          type: string
+          description: Unique identifier for the pipeline task
+        message:
+          type: string
+          description: Status message
+      required:
+        - task_id
+        - message
+
+    PipelineResult:
+      type: object
+      properties:
+        task_id:
+          type: string
+          description: Unique identifier for the pipeline task
+        status:
+          $ref: "#/components/schemas/JobStatus"
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchemaResult"
+          description: Array of schema results
+        total_run_time:
+          type: string
+          description: Total execution time of the pipeline
+      required:
+        - task_id
+        - status
+        - results
+        - total_run_time
+
+    SchemaResult:
+      type: object
+      properties:
+        schema_id:
+          type: string
+          description: Identifier for the schema used
+        metrics:
+          type: object
+          additionalProperties:
+            type: string
+          description: Metrics related to the schema extraction
+        schema_data:
+          type: object
+          additionalProperties:
+            type: string
+          description: Extracted data based on the schema
+      required:
+        - schema_id
+        - metrics
+        - schema_data
+
+    JobStatus:
+      type: string
+      enum:
+        - PENDING
+        - IN_PROGRESS
+        - COMPLETED
+        - FAILED
+      description: Current status of the pipeline job
+
+  responses:
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+                description: Error details
