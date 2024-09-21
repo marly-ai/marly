@@ -65,6 +65,18 @@ A schema is a set of key-value pairs describing what needs to be extracted from 
 
 ## 🛠️ Getting Started
 
+### Install the Python Package
+
+---
+
+To install the python package, run the following command:
+
+```
+pip install marly
+```
+
+---
+
 ### Build the Platform
 
 ---
