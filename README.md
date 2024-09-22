@@ -1,7 +1,7 @@
 <div align="center">
 
 # Marly
-[![PyPI version](https://img.shields.io/pypi/v/marly.svg)](https://pypi.org/project/marly/)
+[![PyPI version](https://img.shields.io/pypi/v/marly.svg)](https://pypi.org/project/marly/) [![Discord](https://img.shields.io/discord/123456789012345678.svg?label=Discord&logo=discord)](https://discord.gg/deHsRHjCkK)
 
 _The Data Processor for Agents_
 
