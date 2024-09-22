@@ -1,8 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from application.pipeline.models.models import PipelineRequestModel, PipelineResponseModel, PipelineResult, JobStatus
-from application.pipeline.service.pipeline_service import run_pipeline
-from common.redis.redis_config import redis_client
-import json
+from fastapi import APIRouter, HTTPException, status
+from application.pipeline.models.models import PipelineRequestModel, PipelineResponseModel, PipelineResult
+from application.pipeline.service.pipeline_service import run_pipeline, get_pipeline_results
+from fastapi.responses import JSONResponse
 import logging
 
 api_router = APIRouter()
@@ -10,66 +9,43 @@ api_router = APIRouter()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-@api_router.post("/pipelines", summary="Run pipeline")
+@api_router.post("/pipelines", 
+                 response_model=PipelineResponseModel, 
+                 status_code=status.HTTP_202_ACCEPTED,
+                 summary="Run pipeline",
+                 description="Initiates a pipeline processing job for the given PDF and schemas.",
+                 responses={
+                     202: {"description": "Pipeline processing started"},
+                     500: {"description": "Internal server error"}
+                 })
 async def run_pipeline_route(pipeline_request: PipelineRequestModel):
     try:
         response = await run_pipeline(pipeline_request)
         if isinstance(response, dict) and "error" in response:
-            raise HTTPException(status_code=500, detail=response["error"])
-        return {"task_id": response["task_id"], "message": "Pipeline processing started"}
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=response["error"])
+        return JSONResponse(content={"task_id": response["task_id"], "message": "Pipeline processing started"}, status_code=status.HTTP_202_ACCEPTED)
     except Exception as e:
-        logger.error(f"Error starting pipeline: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@api_router.get("/pipelines/{task_id}", summary="Get pipeline results", response_model=PipelineResult)
-async def get_pipeline_results(task_id: str):
+@api_router.get("/pipelines/{task_id}", 
+                response_model=PipelineResult,
+                summary="Get pipeline results",
+                description="Retrieves the results of a pipeline processing job.",
+                responses={
+                    200: {"description": "Pipeline results retrieved successfully"},
+                    404: {"description": "Task not found"},
+                    500: {"description": "Internal server error"}
+                })
+async def get_pipeline_results_route(task_id: str):
     try:
-        entries = await redis_client.xrange(f"job-status:{task_id}")
-        if not entries:
-            return PipelineResult(
-                task_id=task_id,
-                status=JobStatus.PENDING,
-                results=[],
-                total_run_time="N/A"
-            )
-
-        results = []
-        total_run_time = "N/A"
-        status = JobStatus.PENDING
-
-        for _, entry in entries:
-            if b'result' in entry:
-                result_data = entry[b'result']
-                if result_data:
-                    try:
-                        result = json.loads(result_data)
-                        if 'results' in result:
-                            logger.info(f"Adding results: {result['results']}")
-                            results.extend(result['results'])
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Failed to decode JSON result: {e}")
-                        continue
-            if b'total_run_time' in entry:
-                logger.info(f"Adding total run time: {entry[b'total_run_time']}")
-                total_run_time = entry[b'total_run_time']
-            if b'status' in entry:
-                status_data = entry[b'status']
-                if status_data:
-                    try:
-                        status = status_data
-                        logger.info(f"Adding status: {status}")
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Failed to decode JSON status: {e}")
-                        continue
-                else:
-                    logger.warning(f"Empty status field for task_id: {task_id}")
-
-        return PipelineResult(
-            task_id=task_id,
-            status=status,
-            results=results,
-            total_run_time=total_run_time
-        )
+        results = await get_pipeline_results(task_id)
+        if isinstance(results, tuple) and results[1] == 500:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=results[0]['error'])
+        if not results:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+        return JSONResponse(content=results, status_code=status.HTTP_200_OK)
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        logger.error(f"Error retrieving pipeline results: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error in get_pipeline_results_route: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")

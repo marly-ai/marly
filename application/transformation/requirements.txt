@@ -12,3 +12,4 @@ langchainhub
 langsmith
 pdfminer.six
 pymupdf
+cerebras_cloud_sdk

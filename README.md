@@ -2,7 +2,7 @@
 
 # Marly
 
-_The Unstructured Data Processor for Agents_
+_The Data Processor for Agents_
 
 [Features](#-features) • [What is a Schema?](#-what-is-a-schema) • [Use Cases](#-use-cases) • [Getting Started](#-getting-started) • [Documentation](#-documentation)
 
@@ -13,8 +13,8 @@ _The Unstructured Data Processor for Agents_
 ## 🚀 Features
 
 - 📄 Give your agents the ability to transform unstructured data into organized, structured information
-- 🔍 Extract data based on multiple schemas from numerous documents with a single API call
-- 🔄 Simplify multi-step agentic workflows that use unstructured documents without a vector database
+- 🔍 Extract data based on multiple schemas from numerous documents without a vector database
+- 🔄 Simplify multi-step agentic workflows that use unstructured documents with a single API call
 
 ---
 
@@ -65,6 +65,18 @@ A schema is a set of key-value pairs describing what needs to be extracted from 
 
 ## 🛠️ Getting Started
 
+### Install the Python Package
+
+---
+
+To install the python package, run the following command:
+
+```
+pip install marly
+```
+
+---
+
 ### Build the Platform
 
 ---
@@ -88,7 +100,6 @@ docker-compose up --build
 2. Run the example extraction script:
    ```bash
    python local_example_azure.py
-   python local_example_groq.py
    ```
 
 ---
@@ -103,7 +114,7 @@ For more detailed information, please refer to our [documentation](https://docs.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](link-to-contributing-guide) for more details.
+We welcome contributions! Please see our [Contributing Guide](https://docs.marly.ai/contribute/contribute) for more details.
 
 ## 📄 License
 

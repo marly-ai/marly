@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from enum import Enum
 
@@ -8,12 +8,16 @@ class JobStatus(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
+class WorkloadItem(BaseModel):
+    pdf_stream: str
+    schemas: List[str]
+
 class PipelineRequestModel(BaseModel):
-    workloads: List[Dict]
+    workloads: List[WorkloadItem]
     provider_type: str
     provider_model_name: str
     api_key: str
-    additional_params: Dict[str, Any] = {}
+    additional_params: Dict[str, Any] = Field(default_factory=dict)
 
 class PipelineResponseModel(BaseModel):
     message: str
