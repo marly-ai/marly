@@ -6,12 +6,15 @@ import os
 import time
 from dotenv import load_dotenv
 from marly import Marly
-
+# This script is the same as local_example_cerebras but will return data in markdown instead of JSON
+# In order to extract data in markdown, you need to add markdown_mode in the POST pipelines request as seen
+# on line 46
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 PDF_FILE_PATH = "./lacers_reduced.pdf"
+
 def read_and_encode_pdf(file_path):
     with open(file_path, "rb") as file:
         pdf_content = base64.b64encode(zlib.compress(file.read())).decode('utf-8')
@@ -41,6 +44,7 @@ def process_pdf(pdf_file):
             api_key=os.getenv("CEREBRAS_API_KEY"),
             provider_model_name="llama3.1-70b",
             provider_type="cerebras",
+            markdown_mode = True,
             workloads=[
                 {
                     "pdf_stream": pdf_content,
@@ -75,7 +79,7 @@ def process_pdf(pdf_file):
             logging.debug(f"Poll attempt {attempt + 1}: Status - {results.status}")
 
             if results.status == 'COMPLETED':
-                parsed_results = [json.loads(results.results[0].metrics[f'schema_{i}']) for i in range(len(results.results[0].metrics))]
+                parsed_results = [results.results[0].metrics[f'schema_{i}'] for i in range(len(results.results[0].metrics))]
                 logging.info(f"Results: {parsed_results}")
                 return parsed_results  # No need to json.dumps() here if we're returning Markdown
             elif results.status == 'FAILED':
