@@ -85,6 +85,10 @@ components:
         api_key:
           type: string
           description: API key for the AI provider
+        markdown_mode:
+          type: boolean
+          description: Flag to enable markdown mode
+          default: false
         additional_params:
           type: object
           additionalProperties: true

@@ -56,6 +56,7 @@ async def run_pipeline(customer_input: PipelineRequestModel):
         "provider_type": customer_input.provider_type,
         "provider_model_name": customer_input.provider_model_name,
         "api_key": customer_input.api_key,
+        "markdown_mode": customer_input.markdown_mode,
         "additional_params": customer_input.additional_params
     })
     await con.set("model-details", model_details_json)
