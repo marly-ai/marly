@@ -13,8 +13,8 @@
 
 ## 🚀 Features
 
-- 📄 Give your agents the ability to transform unstructured data into organized, structured information
-- 🔍 Extract data based on multiple schemas from numerous documents without a vector database
+- 📄 Give your agents the ability to find whats relevant from your documents and get it back you as structured output
+- 🔍 Extract data based on multiple schemas from numerous documents without a vector database or telling us what page its on! 
 - 🔄 Simplify multi-step agentic workflows that use unstructured documents with a single API call
 
 ---
