@@ -17,6 +17,7 @@ class PipelineRequestModel(BaseModel):
     provider_type: str
     provider_model_name: str
     api_key: str
+    markdown_mode: bool = False
     additional_params: Dict[str, Any] = Field(default_factory=dict)
 
 class PipelineResponseModel(BaseModel):

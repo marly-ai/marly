@@ -58,6 +58,7 @@ async def run_transformation(metrics: Dict[str, str], schema: Dict[str, str]) ->
             api_key=model_details.api_key,
             additional_params=model_details.additional_params
         )
+        markdown_mode = model_details.markdown_mode
         logger.info(f"Model instance created with type: {model_details.provider_type}, name: {model_details.provider_model_name}")
     except ValueError as e:
         logger.error(f"Model creation error: {e}")
@@ -66,7 +67,7 @@ async def run_transformation(metrics: Dict[str, str], schema: Dict[str, str]) ->
     schema_keys = ",".join(schema.keys())
     
     tasks = [
-        asyncio.create_task(process_schema(model_instance, schema_id, metric_value, schema_keys))
+        asyncio.create_task(process_schema(model_instance, schema_id, metric_value, schema_keys, markdown_mode))
         for schema_id, metric_value in metrics.items()
     ]
 
@@ -76,9 +77,12 @@ async def run_transformation(metrics: Dict[str, str], schema: Dict[str, str]) ->
 
     return transformed_metrics
 
-async def process_schema(client, schema_id: str, metric_value: str, schema_keys: str) -> str:
+async def process_schema(client, schema_id: str, metric_value: str, schema_keys: str, markdown_mode: bool) -> str:
     try:
-        prompt = langsmith_client.pull_prompt(PromptType.TRANSFORMATION.value)
+        if markdown_mode:
+            prompt = langsmith_client.pull_prompt(PromptType.TRANSFORMATION_MARKDOWN.value)
+        else:
+            prompt = langsmith_client.pull_prompt(PromptType.TRANSFORMATION.value)
         messages = prompt.invoke({
             "first_value": metric_value,
             "second_value": schema_keys
@@ -87,7 +91,10 @@ async def process_schema(client, schema_id: str, metric_value: str, schema_keys:
         if not processed_messages:
             logger.error("No messages to process for transformation")
             return ""
-        transformed_metric = client.do_completion(processed_messages, response_format={"type": "json_object"})
+        if markdown_mode:
+            transformed_metric = client.do_completion(processed_messages)
+        else:
+            transformed_metric = client.do_completion(processed_messages, response_format={"type": "json_object"})
         return transformed_metric
     except Exception as e:
         logger.error(f"Error transforming metric for schema {schema_id}: {e}")
