@@ -21,7 +21,7 @@ Allow your agents to extract tables & text from your PDFs, Powerpoints, etc all 
 - 📄 Give your agents the ability to transform unstructured data into organized, structured information
 - 🔍 Extract data based on multiple schemas from numerous documents without a vector database
 - 🔄 Simplify multi-step agentic workflows that use unstructured documents with a single API call
-
+---
 ## 🧰 What is a Schema?
 
 A schema is a set of key-value pairs describing what needs to be extracted from a particular document (JSON format).
