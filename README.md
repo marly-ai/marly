@@ -9,7 +9,11 @@ _The Data Processor for Agents_
 </div>
 
 ---
-  <img src="https://github.com/noaheggenschwiler/images/blob/main/marly-overview.png?raw=true" alt="Marly Logo">
+
+Allow your agents to extract tables & text from your PDFs, Powerpoints, etc all with a single API call.
+
+<img src="https://github.com/noaheggenschwiler/images/blob/main/marly-overview.png?raw=true" alt="Marly Logo">
+
 ---
 
 ## 🚀 Features
