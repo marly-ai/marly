@@ -1,9 +1,8 @@
 <div align="center">
 
 # Marly
+
 [![PyPI version](https://img.shields.io/pypi/v/marly.svg)](https://pypi.org/project/marly/) [![Discord](https://img.shields.io/discord/123456789012345678.svg?label=Discord&logo=discord)](https://discord.gg/deHsRHjCkK)
-
-
 
 [Features](#-features) • [What is a Schema?](#-what-is-a-schema) • [Use Cases](#-use-cases) • [Getting Started](#-getting-started) • [Documentation](#-documentation)
 
@@ -11,10 +10,16 @@
 
 ---
 
+Allow your agents to extract tables & text from your PDFs, Powerpoints, etc all with a single API call.
+
+<img src="https://github.com/noaheggenschwiler/images/blob/main/marly-overview.png?raw=true" alt="Marly Logo">
+
+---
+
 ## 🚀 Features
 
 - 📄 Give your agents the ability to find whats relevant from your documents and get it back in a structured useable format
-- 🔍 Extract data based on multiple schemas from numerous documents without a vector database or telling us what page its on! 
+- 🔍 Extract data based on multiple schemas from numerous documents without a vector database or telling us what page its on!
 - 🔄 Simplify multi-step agentic workflows that use unstructured documents with a few function calls
 
 ---
