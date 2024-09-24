@@ -20,7 +20,7 @@ Allow your agents to extract tables & text from your PDFs, Powerpoints, etc all 
 
 - 📄 Give your agents the ability to find whats relevant from your documents and get it back in a structured useable format
 - 🔍 Extract data based on multiple schemas from numerous documents without a vector database or telling us what page its on!
-- 🔄 Simplify multi-step agentic workflows that use unstructured documents with a few function calls
+- 🔄 Simplify multi-step agentic workflows that use unstructured documents with a single tool call
 
 ---
 
