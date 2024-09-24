@@ -34,17 +34,6 @@ def read_and_encode_pdf(file_path):
 def process_pdf(pdf_file):
     pdf_content = read_and_encode_pdf(pdf_file)
 
-    schema_1 = {
-        "Firm": "The name of the firm",
-        "Number of Funds": "The number of funds managed by the firm",
-        "Commitment": "The commitment amount in millions of dollars",
-        "Percent of Total Comm": "The percentage of total commitment",
-        "Exposure (FMV + Unfunded)": "The exposure including fair market value and unfunded commitments in millions of dollars",
-        "Percent of Total Exposure": "The percentage of total exposure",
-        "TVPI": "Total Value to Paid-In multiple",
-        "Net IRR": "Net Internal Rate of Return as a percentage"
-    }
-
     #running locally
     client = Marly(base_url="http://localhost:8100")
 
