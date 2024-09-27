@@ -10,7 +10,7 @@
 
 ---
 
-Allow your agents to extract tables & text from your PDFs, Powerpoints, etc all with a single API call.
+Allow your agents to extract tables & text from your PDFs, Powerpoints, etc all with a single API call making it easy for them to take action (database call, API call, creating a chart etc).
 
 <img src="https://github.com/noaheggenschwiler/images/blob/main/marly-overview.png?raw=true" alt="Marly Logo">
 
