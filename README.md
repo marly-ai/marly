@@ -124,6 +124,6 @@ We welcome contributions! Please see our [Contributing Guide](https://docs.marly
 
 ## 📄 License
 
-This project is licensed under the [Elastic License 2.0 (ELv2)](https://www.elastic.co/licensing/elastic-license).
+This project is licensed under the [MIT License](https://opensource.org/license/mit).
 
 </div>
