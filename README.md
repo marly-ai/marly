@@ -95,12 +95,17 @@ docker-compose up --build
 
 ---
 
-### Run an Example Extraction
+### Run an Example Extraction or Notebook
 
-1. Navigate to the example scripts:
+1. Navigate to the example scripts/example notebooks folder:
 
    ```bash
    cd example_scripts
+   ```
+   or
+
+   ```bash
+   cd example_notebooks
    ```
 
 2. Run the example extraction script:
