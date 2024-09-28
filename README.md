@@ -12,7 +12,7 @@
 
 Allow your agents to extract tables & text from your PDFs, Powerpoints, etc in a structured format making it easy for them to take subsequent actions (database call, API call, creating a chart etc).
 
-<img src="https://github.com/noaheggenschwiler/images/blob/main/marly-overview.png?raw=true" alt="Marly Logo">
+<img src="https://github.com/noaheggenschwiler/images/blob/main/marly-diagram-docs.png?raw=true" alt="Marly Logo">
 
 ---
 
