@@ -18,7 +18,7 @@ Allow your agents to extract tables & text from your PDFs, Powerpoints, etc in a
 
 ## 🚀 Features
 
-- 📄 Give your agents the ability to find whats relevant from your documents, extract it and get it back in JSON with a single API call.
+- 📄 Give your agents the ability to find whats relevant from large documents, extract it and get it back in JSON with a single API call.
 - 🔍 Extract data based on multiple schemas from numerous documents without a vector database or specifying page numbers
 - 🔄 Built-in caching to enable instant retrieval of previously extracted schemas, allowing for rapid repeat extractions without reprocessing the original documents.
 
