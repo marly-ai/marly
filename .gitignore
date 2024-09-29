@@ -12,6 +12,7 @@ site
 .coverage
 coverage.xml
 .netlify
+*_venv/
 test.db
 log.txt
 Pipfile.lock

@@ -2,7 +2,7 @@
 
 # Marly
 
-_The Data Processor for Agents_
+[![PyPI version](https://img.shields.io/pypi/v/marly.svg)](https://pypi.org/project/marly/) [![Discord](https://img.shields.io/discord/123456789012345678.svg?label=Discord&logo=discord)](https://discord.gg/deHsRHjCkK)
 
 [Features](#-features) • [What is a Schema?](#-what-is-a-schema) • [Use Cases](#-use-cases) • [Getting Started](#-getting-started) • [Documentation](#-documentation)
 
@@ -10,11 +10,17 @@ _The Data Processor for Agents_
 
 ---
 
+Allow your agents to extract tables & text from your PDFs, Powerpoints, etc in a structured format making it easy for them to take subsequent actions (database call, API call, creating a chart etc).
+
+<img src="https://github.com/noaheggenschwiler/images/blob/main/marly-diagram-docs.png?raw=true" alt="Marly Logo">
+
+---
+
 ## 🚀 Features
 
-- 📄 Give your agents the ability to transform unstructured data into organized, structured information
-- 🔍 Extract data based on multiple schemas from numerous documents without a vector database
-- 🔄 Simplify multi-step agentic workflows that use unstructured documents with a single API call
+- 📄 Give your agents the ability to find whats relevant from large documents, extract it and get it back in JSON with a single API call.
+- 🔍 Extract data based on multiple schemas from numerous documents without a vector database or specifying page numbers
+- 🔄 Built-in caching to enable instant retrieval of previously extracted schemas, allowing for rapid repeat extractions without reprocessing the original documents.
 
 ---
 
@@ -89,12 +95,17 @@ docker-compose up --build
 
 ---
 
-### Run an Example Extraction
+### Run an Example Extraction or Notebook
 
-1. Navigate to the example scripts:
+1. Navigate to the example scripts/example notebooks folder:
 
    ```bash
    cd example_scripts
+   ```
+   or
+
+   ```bash
+   cd example_notebooks
    ```
 
 2. Run the example extraction script:
@@ -118,6 +129,6 @@ We welcome contributions! Please see our [Contributing Guide](https://docs.marly
 
 ## 📄 License
 
-This project is licensed under the [Elastic License 2.0 (ELv2)](https://www.elastic.co/licensing/elastic-license).
+This project is licensed under the [MIT License](https://opensource.org/license/mit).
 
 </div>
