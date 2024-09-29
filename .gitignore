@@ -30,3 +30,6 @@ __init__.py
 */myenv
 */venv
 .DS_Store
+
+
+example_notebooks/*/.cache/
