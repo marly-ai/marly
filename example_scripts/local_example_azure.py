@@ -1,6 +1,4 @@
-import base64
 import json
-import zlib
 import logging
 import requests
 from dotenv import load_dotenv
@@ -12,21 +10,13 @@ load_dotenv()
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 BASE_URL = "http://localhost:8100"
-PDF_FILE_PATH = "./lacers_reduced.pdf"
-
-def read_and_encode_pdf(file_path):
-    with open(file_path, "rb") as file:
-        pdf_content = base64.b64encode(zlib.compress(file.read())).decode('utf-8')
-    logging.debug(f"{file_path} read and encoded")
-    return pdf_content
 
 def get_pipeline_results(task_id):
     logging.debug(f"Fetching results for task ID: {task_id}")
     response = requests.get(f"{BASE_URL}/pipelines/{task_id}")
     return response.json()
 
-def process_pdf(pdf_file):
-    pdf_content = read_and_encode_pdf(pdf_file)
+def process_pdf():
 
     schema_1 = {
         "Firm": "The name of the firm",
@@ -42,8 +32,11 @@ def process_pdf(pdf_file):
     pipeline_request = {
         "workloads": [
             {
-                "pdf_stream": pdf_content,
-                "schemas": [json.dumps(schema_1)]
+                "pdf_stream": "",
+                "schemas": [json.dumps(schema_1)],
+                "file_name": "lacers_reduced.pdf",
+                "data_source": "local_fs",
+                "documents_location": "/app/example_files"
             }
         ],
         "provider_type": "azure",
@@ -101,4 +94,4 @@ def process_pdf(pdf_file):
     return None
 
 if __name__ == "__main__":
-    results = process_pdf(PDF_FILE_PATH)
+    results = process_pdf()

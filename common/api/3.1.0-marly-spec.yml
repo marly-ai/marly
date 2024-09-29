@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  title: Pipeline API
-  description: API for running and retrieving results from data processing pipelines
+  title: Marly API
+  description: The Data Processor for Agents
   version: 1.0.0
 
 paths:
@@ -64,9 +64,25 @@ components:
           items:
             type: string
           description: JSON strings representing extraction schemas
+        data_source:
+          type: string
+          description: Source of the data (e.g., 'local', 's3')
+        documents_location:
+          type: string
+          description: Location of the documents (e.g., S3 bucket name, file path)
+        file_name:
+          type: string
+          description: Name of the file
+        additional_params:
+          type: object
+          description: Additional parameters for the data source, including authentication details
+          additionalProperties: true
       required:
         - pdf_stream
         - schemas
+        - data_source
+        - documents_location
+        - file_name
 
     PipelineRequestModel:
       type: object
@@ -78,7 +94,7 @@ components:
           description: Array of workload objects containing PDF content and schemas
         provider_type:
           type: string
-          description: Type of AI provider (e.g., 'azure', 'openai')
+          description: Type of AI provider (e.g., 'azure', 'openai', 'groq', 'cerebras')
         provider_model_name:
           type: string
           description: Name of the AI model to use
