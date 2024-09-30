@@ -1,23 +1,17 @@
 import json
 import logging
-import requests
+import time
 from dotenv import load_dotenv
 import os
-import time
+from marly import Marly
 
 load_dotenv()
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 BASE_URL = "http://localhost:8100"
 
-def get_pipeline_results(task_id):
-    logging.debug(f"Fetching results for task ID: {task_id}")
-    response = requests.get(f"{BASE_URL}/pipelines/{task_id}")
-    return response.json()
-
 def process_pdf():
-
     schema_1 = {
         "Firm": "The name of the firm",
         "Number of Funds": "The number of funds managed by the firm",
@@ -29,69 +23,54 @@ def process_pdf():
         "Net IRR": "Net Internal Rate of Return as a percentage"
     }
 
-    pipeline_request = {
-        "workloads": [
-            {
-                "pdf_stream": "",
-                "schemas": [json.dumps(schema_1)],
-                "file_name": "lacers_reduced.pdf",
-                "data_source": "local_fs",
-                "documents_location": "/app/example_files"
+    client = Marly(base_url=BASE_URL)
+
+    try:
+        pipeline_response_model = client.pipelines.create(
+            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+            provider_model_name=os.getenv("AZURE_MODEL_NAME"),
+            provider_type="azure",
+            workloads=[
+                {
+                    "file_name": "lacers_reduced.pdf",
+                    "data_source": "local_fs",
+                    "documents_location": "/app/example_files",
+                    "schemas": [json.dumps(schema_1)],
+                }
+            ],
+            additional_params={
+                "azure_endpoint": os.getenv("AZURE_ENDPOINT"),
+                "azure_deployment": os.getenv("AZURE_DEPLOYMENT_ID"),
+                "api_version": os.getenv("AZURE_API_VERSION")
             }
-        ],
-        "provider_type": "azure",
-        "provider_model_name": os.getenv("AZURE_MODEL_NAME"),
-        "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
-        "additional_params": {
-            "azure_endpoint": os.getenv("AZURE_ENDPOINT"),
-            "azure_deployment": os.getenv("AZURE_DEPLOYMENT_ID"),
-            "api_version": os.getenv("AZURE_API_VERSION")
-        }
-    }
+        )
+        
+        logging.debug(f"Task ID: {pipeline_response_model.task_id}")
 
-    logging.debug("Sending POST request to pipeline endpoint")
-    try:
-        response = requests.post(f"{BASE_URL}/pipelines", json=pipeline_request)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Error sending request: {e}")
-        return
+        max_attempts = 5
+        attempt = 0
+        while attempt < max_attempts:
+            time.sleep(30)
 
-    logging.debug(f"Response status code: {response.status_code}")
-    logging.debug(f"Response headers: {response.headers}")
-    logging.debug(f"Response content: {response.text}")
+            results = client.pipelines.retrieve(pipeline_response_model.task_id)
+            logging.debug(f"Poll attempt {attempt + 1}: Status - {results.status}")
 
-    try:
-        result = response.json()
-    except json.JSONDecodeError:
-        logging.error("Failed to decode JSON response")
-        return
+            if results.status == 'COMPLETED':
+                logging.debug(f"Pipeline completed with results: {results.results}")
+                return results.results
+            elif results.status == 'FAILED':
+                logging.error(f"Error: {results.error_message}")
+                return None
 
-    task_id = result.get("task_id")
-    if not task_id:
-        logging.error("Invalid task_id: task_id is None or empty")
-        return
-    logging.debug(f"Task ID: {task_id}")
+            attempt += 1
 
-    max_attempts = 5
-    attempt = 0
-    while attempt < max_attempts:
-        time.sleep(30)
+        logging.warning("Timeout: Pipeline execution took too long.")
+        return None
 
-        results = get_pipeline_results(task_id)
-        logging.debug(f"Poll attempt {attempt + 1}: Status - {results['status']}")
-
-        if results['status'] == 'COMPLETED':
-            logging.debug(f"Pipeline completed with results: {results['results']}")
-            return results['results']
-        elif results['status'] == 'FAILED':
-            logging.error(f"Error: {results.get('error_message', 'Unknown error')}")
-            return None
-
-        attempt += 1
-
-    logging.warning("Timeout: Pipeline execution took too long.")
-    return None
+    except Exception as e:
+        logging.error(f"Error in pipeline process: {e}")
+        return None
 
 if __name__ == "__main__":
     results = process_pdf()
+    print(results)
