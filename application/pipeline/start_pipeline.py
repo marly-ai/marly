@@ -4,7 +4,7 @@ from application.pipeline.routes.pipeline_routes import api_router as pipeline_a
 
 app = FastAPI(
     title="Marly API",
-    description="The Unstructured Data Processor for Agents",
+    description="The Data Processor for Agents",
     docs_url='/docs',
     openapi_url='/openapi.json'
 )

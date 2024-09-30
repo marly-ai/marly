@@ -13,7 +13,7 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-PDF_FILE_PATH = "./lacers_reduced.pdf"
+PDF_FILE_PATH = "../example_files/lacers_reduced.pdf"
 
 def read_and_encode_pdf(file_path):
     with open(file_path, "rb") as file:

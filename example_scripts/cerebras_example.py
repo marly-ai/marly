@@ -11,7 +11,7 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-PDF_FILE_PATH = "./lacers_reduced.pdf"
+PDF_FILE_PATH = "../example_files/lacers_reduced.pdf"
 BASE_URL = "http://localhost:8100"
 
 SCHEMA_1 = {
@@ -34,7 +34,6 @@ def read_and_encode_pdf(file_path):
 def process_pdf(pdf_file):
     pdf_content = read_and_encode_pdf(pdf_file)
 
-    #running locally
     client = Marly(base_url="http://localhost:8100")
 
     try:

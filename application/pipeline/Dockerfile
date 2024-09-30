@@ -11,6 +11,9 @@ COPY ./application/pipeline /app/application/pipeline
 # Copy the requirements file
 COPY ./application/pipeline/requirements.txt /app/requirements.txt
 
+# Copy example files
+COPY ./example_files /app/example_files
+
 # Install dependencies
 RUN pip install --no-cache-dir -r /app/requirements.txt
 

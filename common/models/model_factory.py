@@ -6,7 +6,6 @@ from common.models.azure_model import AzureModel
 from common.models.groq_model import GroqModel
 from common.models.cerebras_model import CerebrasModel
 
-# Configure logging for this module
 logger = logging.getLogger(__name__)
 
 class ModelFactory:
