@@ -32,7 +32,7 @@ def process_pdf():
             provider_type="azure",
             workloads=[
                 {
-                    "file_name": "lacers_reduced.pdf",
+                    "file_name": "lacers reduced",
                     "data_source": "local_fs",
                     "documents_location": "/app/example_files",
                     "schemas": [json.dumps(schema_1)],
