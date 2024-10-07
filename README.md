@@ -110,7 +110,7 @@ docker-compose up --build
 
 2. Run the example extraction script:
    ```bash
-   python local_example_azure.py
+   python azure_example.py
    ```
 
 ---
