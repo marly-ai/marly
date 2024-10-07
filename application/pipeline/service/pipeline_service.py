@@ -367,34 +367,31 @@ async def get_pipeline_results(task_id: str):
     if not status_stream:
         return {"error": "Task not found"}, 404
 
-    last_entry = status_stream[-1]
-    _, entry = last_entry
+    latest_status = JobStatus.PENDING
+    total_run_time = 'N/A'
+    all_results = []
 
-    try:
-        status = JobStatus(json.loads(entry['status']))
-    except (json.JSONDecodeError, ValueError):
-        logger.error(f"Invalid status value: {entry['status']}")
-        status = JobStatus.PENDING
-
-    total_run_time = entry.get('total_run_time', 'N/A')
-    
-    results = []
-    if 'result' in entry:
+    for _, entry in status_stream:
         try:
-            result_data = json.loads(entry['result'])
-            if isinstance(result_data, dict) and 'results' in result_data:
-                results = result_data['results']
-            elif isinstance(result_data, list):
-                results = result_data
-            else:
-                results = [result_data]
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse result JSON: {entry['result']}")
+            entry_status = JobStatus(json.loads(entry['status']))
+            latest_status = entry_status
+        except (json.JSONDecodeError, ValueError):
+            logger.error(f"Invalid status value: {entry['status']}")
+
+        if 'total_run_time' in entry:
+            total_run_time = entry['total_run_time']
+
+        if 'result' in entry:
+            try:
+                result_data = json.loads(entry['result'])
+                all_results.append(result_data)
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse result JSON: {entry['result']}")
 
     response = PipelineResult(
         task_id=task_id,
-        status=status,
-        results=results,
+        status=latest_status,
+        results=all_results,
         total_run_time=total_run_time
     )
 

@@ -11,6 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 BASE_URL = "http://localhost:8100"
 WEBSITE_URL = "https://www.forbes.com/sites/kenrickcai/2023/02/07/mindsdb-series-a-funding-ai-in-workplace/"
+WEBSITE_URL2 = "https://techcrunch.com/2024/08/09/anysphere-a-github-copilot-rival-has-raised-60m-series-a-at-400m-valuation-from-a16z-thrive-sources-say/"
 
 SCHEMA = {
     "Names": "The first name and last name of the company founders",
@@ -32,7 +33,13 @@ def process_website():
                 "data_source": "web",
                 "documents_location": WEBSITE_URL,
                 "schemas": [json.dumps(SCHEMA)],
-            }],
+            },
+            {
+                "data_source": "web",
+                "documents_location": WEBSITE_URL2,
+                "schemas": [json.dumps(SCHEMA)],
+            }
+            ],
             additional_params={
                 "azure_endpoint": os.getenv("AZURE_ENDPOINT"),
                 "azure_deployment": os.getenv("AZURE_DEPLOYMENT_ID"),
@@ -42,8 +49,14 @@ def process_website():
 
         while True:
             results = client.pipelines.retrieve(pipeline_response.task_id)
+            #logging.info(f"Results: {results}")
             if results.status == 'COMPLETED':
-                return json.dumps([json.loads(results.results[0].metrics[f'schema_{i}']) for i in range(len(results.results[0].metrics))])
+                processed_results = []
+                for result in results.results:
+                    for schema_result in result.results:
+                        processed_result = json.loads(schema_result['metrics']['schema_0'])
+                        processed_results.append(processed_result)
+                return json.dumps(processed_results, indent=2)
             elif results.status == 'FAILED':
                 return None
             time.sleep(15)
