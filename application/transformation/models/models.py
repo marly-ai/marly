@@ -6,6 +6,7 @@ class TransformationRequestModel(BaseModel):
     task_id: str
     pdf_key: str
     results: List['SchemaResult']
+    source_type: str = "pdf"
 
 class TransformationResponseModel(BaseModel):
     task_id: str
