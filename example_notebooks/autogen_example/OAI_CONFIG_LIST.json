@@ -1,7 +1,7 @@
 [
     {
         "model": "llama-3.1-70b-versatile",
-        "api_key": "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",
+        "api_key": "<api_key>",
         "api_type": "groq",
         "tags": ["tool", "llama-3.1-70b-versatile"]
     }
