@@ -214,9 +214,8 @@ async def handle_web_source(index: int, workload_combo: WorkloadItem, con: redis
         source_type="web"
     )
     await con.xadd("extraction-stream", {"payload": json.dumps(task_payload.dict())})
-    
-    # Return some measure of the content size or complexity
-    return len(html_content)  # or another appropriate metric
+
+    return 1
 
 
 async def handle_data_source(index: int, workload_combo: WorkloadItem, con: redis.Redis, task_id: str) -> int:
