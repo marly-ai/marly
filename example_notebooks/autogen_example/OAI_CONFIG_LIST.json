@@ -1,0 +1,8 @@
+[
+    {
+        "model": "llama-3.1-70b-versatile",
+        "api_key": "<api_key>",
+        "api_type": "groq",
+        "tags": ["tool", "llama-3.1-70b-versatile"]
+    }
+]
