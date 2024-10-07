@@ -43,7 +43,7 @@ async def get_latest_model_details(redis: Redis) -> ModelDetails:
         logger.error(f"Failed to get or parse model details: {e}")
         return None
 
-async def run_transformation(metrics: Dict[str, str], schema: Dict[str, str]) -> Dict[str, str]:
+async def run_transformation(metrics: Dict[str, str], schema: Dict[str, str], source_type: str) -> Dict[str, str]:
     logger.info("Starting transformation process")
 
     redis: Redis = await get_redis_connection()
@@ -67,7 +67,7 @@ async def run_transformation(metrics: Dict[str, str], schema: Dict[str, str]) ->
     schema_keys = ",".join(schema.keys())
     
     tasks = [
-        asyncio.create_task(process_schema(model_instance, schema_id, metric_value, schema_keys, markdown_mode))
+        asyncio.create_task(process_schema(model_instance, schema_id, metric_value, schema_keys, markdown_mode, source_type))
         for schema_id, metric_value in metrics.items()
     ]
 
@@ -77,9 +77,11 @@ async def run_transformation(metrics: Dict[str, str], schema: Dict[str, str]) ->
 
     return transformed_metrics
 
-async def process_schema(client, schema_id: str, metric_value: str, schema_keys: str, markdown_mode: bool) -> str:
+async def process_schema(client, schema_id: str, metric_value: str, schema_keys: str, markdown_mode: bool, source_type: str) -> str:
     try:
-        if markdown_mode:
+        if source_type == 'web':
+            prompt = langsmith_client.pull_prompt(PromptType.TRANSFORMATION_WEB.value)
+        elif markdown_mode:
             prompt = langsmith_client.pull_prompt(PromptType.TRANSFORMATION_MARKDOWN.value)
         else:
             prompt = langsmith_client.pull_prompt(PromptType.TRANSFORMATION.value)

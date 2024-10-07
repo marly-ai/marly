@@ -13,6 +13,8 @@ from application.extraction.models.models import ModelDetails
 from langsmith import Client as LangSmithClient
 from common.prompts.prompt_enums import PromptType
 from langchain.schema import SystemMessage, HumanMessage
+from bs4 import BeautifulSoup
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,6 +50,104 @@ async def get_latest_model_details(redis: Redis) -> ModelDetails:
     except Exception as e:
         logger.error(f"Failed to get or parse model details: {e}")
         return None
+    
+def web_preprocessing(html_content: str) -> str:
+    # Parse the HTML
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    # Remove script and style elements
+    for script_or_style in soup(["script", "style", "meta", "link"]):
+        script_or_style.decompose()
+
+    # Remove navigation, footer, ads, and sidebars
+    for element in soup(["nav", "footer", "aside"]):
+        element.decompose()
+
+    # Remove elements with common ad-related class names
+    ad_classes = ["ad", "advertisement", "banner", "sidebar"]
+    for element in soup.find_all(class_=lambda x: x and any(cls in x for cls in ad_classes)):
+        element.decompose()
+
+    # Try to find the main content
+    main_content = soup.find("main") or soup.find("article")
+    if not main_content:
+        # If no main or article tag, look for the largest text-containing div
+        main_content = max(
+            soup.find_all("div", text=True),
+            key=lambda div: len(div.get_text()),
+            default=soup
+        )
+
+    # Process links in the main content
+    for a in main_content.find_all('a', href=True):
+        href = a['href']
+        if not a.string:
+            a.string = href
+        else:
+            a.string = f"{a.string} ({href})"
+
+    # Extract text from the main content
+    text = main_content.get_text(separator=' ', strip=True)
+
+    # Clean the text
+    text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
+    text = re.sub(r'&[a-zA-Z]+;', '', text)  # Remove HTML entities
+    logger.info(f"Length of text: {len(text)}")
+    return text
+
+async def run_web_extraction(pdf_key: str, schemas: List[Dict[str, str]]) -> List[str]:
+    logger.info(f"Starting web extraction process for pdf_key: {pdf_key}")
+    
+    # Retrieve the HTML content from Redis
+    redis: Redis = await get_redis_connection()
+    html_content = await redis.get(pdf_key)
+    
+    if not html_content:
+        logger.error(f"No HTML content found for key: {pdf_key}")
+        return []
+
+    # Preprocess the HTML content
+    preprocessed_text = web_preprocessing(html_content.decode('utf-8'))
+    
+    # Get the latest model details
+    model_details = await get_latest_model_details(redis)
+    if not model_details:
+        return []
+
+    # Create model instance
+    try:
+        model_instance = ModelFactory.create_model(
+            model_type=model_details.provider_type,
+            model_name=model_details.provider_model_name,
+            api_key=model_details.api_key,
+            additional_params=model_details.additional_params
+        )
+    except ValueError as e:
+        logger.error(f"Model creation error: {e}")
+        return []
+
+    # Need to change this
+    # Process each schema
+    results = []
+    for schema in schemas:
+        try:
+            formatted_keywords = "\n".join([f"{k}: {v}" for k, v in schema.items()])
+            prompt = langsmith_client.pull_prompt(PromptType.EXTRACTION.value)
+            messages = prompt.invoke({
+                "first_value": preprocessed_text,
+                "second_value": formatted_keywords,
+                "third_value": ""  # No examples for web extraction
+            })
+            processed_messages = preprocess_messages(messages)
+            if not processed_messages:
+                logger.error("No messages to process for LLM call")
+                continue
+            response = model_instance.do_completion(processed_messages)
+            results.append(response)
+        except Exception as e:
+            logger.error(f"Error processing schema: {e}")
+
+    return results
 
 async def run_extraction(pdf_key: str, schemas: List[Dict[str, str]]) -> List[str]:
     logger.info(f"Starting extraction process for pdf_key: {pdf_key}")

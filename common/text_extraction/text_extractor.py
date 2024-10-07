@@ -49,9 +49,12 @@ def process_page(client, prompt, page_number: int, page_text: str, formatted_key
         
         if messages:
             response = client.do_completion(messages)
+            logger.info(f"Response for page {page_number}: {response}")
             if isinstance(response, str) and "yes" in response.lower():
                 logger.info(f"Page {page_number} is relevant according to the model")
                 return page_number
+            else:
+                logger.info(f"Page {page_number} is not relevant according to the model")
     except Exception as e:
         logger.error(f"Error processing page {page_number}: {e}")
     

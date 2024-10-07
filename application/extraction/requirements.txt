@@ -13,3 +13,6 @@ langsmith
 pdfminer.six
 pymupdf
 cerebras_cloud_sdk
+boto3
+beautifulsoup4
+aiohttp
