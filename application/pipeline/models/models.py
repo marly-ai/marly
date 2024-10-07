@@ -38,3 +38,4 @@ class ExtractionRequestModel(BaseModel):
     task_id: str
     pdf_key: str
     schemas: List[Dict]
+    source_type: str = "pdf"

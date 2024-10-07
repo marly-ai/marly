@@ -6,6 +6,7 @@ class ExtractionRequestModel(BaseModel):
     task_id: str
     pdf_key: str
     schemas: List[Dict]
+    source_type: str = "pdf"
 
 class SchemaResult(BaseModel):
     schema_id: str
@@ -16,6 +17,7 @@ class ExtractionResponseModel(BaseModel):
     task_id: str
     pdf_key: str
     results: List[SchemaResult]
+    source_type: str = "pdf"
 
 class JobStatus(str, Enum):
     PENDING = "PENDING"

@@ -11,7 +11,7 @@ from application.extraction.models.models import ( ExtractionRequestModel,
     SchemaResult,
     JobStatus
 )
-from application.extraction.service.extraction_handler import run_extraction
+from application.extraction.service.extraction_handler import run_extraction, run_web_extraction
 from common.redis.redis_config import get_redis_connection
 
 logging.basicConfig(level=logging.INFO)
@@ -58,7 +58,10 @@ async def run_extractions() -> None:
 
 async def process_extraction(extraction_request: ExtractionRequestModel) -> ExtractionResponseModel:
     try:
-        results = await run_extraction(extraction_request.pdf_key, extraction_request.schemas)
+        if extraction_request.source_type == "web":
+            results = await run_web_extraction(extraction_request.pdf_key, extraction_request.schemas)
+        else:
+            results = await run_extraction(extraction_request.pdf_key, extraction_request.schemas)
         schema_results = [
             SchemaResult(
                 schema_id=f"schema_{index}",
@@ -71,7 +74,8 @@ async def process_extraction(extraction_request: ExtractionRequestModel) -> Extr
         response = ExtractionResponseModel(
             task_id=extraction_request.task_id,
             pdf_key=extraction_request.pdf_key,
-            results=schema_results
+            results=schema_results,
+            source_type=extraction_request.source_type
         )
 
         redis = await get_redis_connection()

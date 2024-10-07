@@ -63,7 +63,7 @@ async def process_transformation(transformation_request: TransformationRequestMo
         for index, schema_result in enumerate(transformation_request.results):
             logger.info(f"Processing schema result {index}: {schema_result}")
             try:
-                transformed_metrics = await run_transformation(schema_result.metrics, schema_result.schema_data)
+                transformed_metrics = await run_transformation(schema_result.metrics, schema_result.schema_data, transformation_request.source_type)
                 transformed_results.append(
                     SchemaResult(
                         schema_id=schema_result.schema_id,

@@ -13,3 +13,4 @@ pdfminer.six
 boto3
 pymupdf
 cerebras_cloud_sdk
+aiohttp

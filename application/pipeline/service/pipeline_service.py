@@ -9,6 +9,8 @@ import redis.asyncio as redis
 import logging
 import time
 import asyncio
+from urllib.parse import urlparse
+import aiohttp
 
 from application.pipeline.models.models import (
     PipelineRequestModel,
@@ -86,9 +88,10 @@ async def run_pipeline(customer_input: PipelineRequestModel):
             if workload_combo.pdf_stream and workload_combo.data_source:
                 logger.error(f"Workload {index} cannot have both pdf_stream and data_source.")
                 raise ValueError("Workload cannot have both pdf_stream and data_source.")
-
             if workload_combo.pdf_stream:
                 return await handle_pdf_stream(index, workload_combo, con, task_id)
+            elif workload_combo.data_source == "web":
+                return await handle_web_source(index, workload_combo, con, task_id)
             elif workload_combo.data_source:
                 return await handle_data_source(index, workload_combo, con, task_id)
             else:
@@ -159,6 +162,62 @@ async def handle_pdf_stream(index: int, workload_combo: WorkloadItem, con: redis
     await con.xadd("extraction-stream", {"payload": json.dumps(task_payload.dict())})
 
     return page_count
+
+async def fetch_document(session, workload_combo):
+    try:
+        async with session.get(workload_combo.documents_location) as response:
+            response.raise_for_status()  # This will raise an HTTPError for bad responses
+            content = await response.read()
+            return content
+    except aiohttp.ClientError as e:
+        logger.error(f"Error fetching document: {str(e)}")
+        raise
+
+
+async def handle_web_source(index: int, workload_combo: WorkloadItem, con: redis.Redis, task_id: str) -> int:
+    logger.info(f"Processing workload {index} with web source: {workload_combo.documents_location}")
+    
+    # Fetch the web content
+    # You might want to use a library like aiohttp for asynchronous HTTP requests
+    # Here I need to make sure that the url is valid and that it returns a 200
+    # Validate URL
+    try:
+        result = urlparse(workload_combo.documents_location)
+        if not all([result.scheme, result.netloc]):
+            logger.error(f"Invalid URL: {workload_combo.documents_location}")
+            return 0
+    except ValueError:
+        logger.error(f"Invalid URL format: {workload_combo.documents_location}")
+        return 0
+    logger.info("URL is valid")
+    logger.info("Fetching document content")
+    async with aiohttp.ClientSession() as session:
+        try:
+            document_content = await fetch_document(session, workload_combo)
+        except aiohttp.ClientError as e:
+            logger.error(f"Failed to connect to URL: {str(e)}")
+            return 0
+    
+    # Process the HTML content as needed
+    # For example, you might want to extract text or specific elements
+    # This is where the preprocessing could come into play, or I can add it 
+    # Store the processed content in Redis
+    content_key = f"web:{task_id}:{index}"
+    await con.set(content_key, document_content)
+    
+    # Create and add the extraction task
+    schemas = [json.loads(schema) for schema in workload_combo.schemas]
+    task_payload = ExtractionRequestModel(
+        task_id=task_id,
+        pdf_key=content_key,
+        schemas=schemas,
+        source_type="web"
+    )
+    await con.xadd("extraction-stream", {"payload": json.dumps(task_payload.dict())})
+    
+    # Return some measure of the content size or complexity
+    return len(html_content)  # or another appropriate metric
+
 
 async def handle_data_source(index: int, workload_combo: WorkloadItem, con: redis.Redis, task_id: str) -> int:
     logger.info(f"Processing workload {index} with data_source: {workload_combo.data_source}")
