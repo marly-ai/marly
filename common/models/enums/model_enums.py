@@ -5,6 +5,7 @@ class ModelType(Enum):
     AZURE = "azure"
     GROQ = "groq"
     CEREBRAS = "cerebras"
+    MISTRAL = "mistral"
 
 class OpenAIModelName(Enum):
     GPT_3_5_TURBO = "gpt-3.5-turbo"
@@ -36,3 +37,9 @@ class GroqModelName(Enum):
 class CerebrasModelName(Enum):
     LLAMA_3_1_70B = "llama3.1-70b"
     LLAMA_3_1_8B = "llama3.1-8b"
+
+class MistralModelName(Enum):
+    MISTRAL_LARGE_LATEST = "mistral-large-latest"
+
+class MistralAPIURL(Enum):
+    CHAT_COMPLETIONS = "https://api.mistral.ai/v1/chat/completions"

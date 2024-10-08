@@ -14,3 +14,4 @@ boto3
 pymupdf
 cerebras_cloud_sdk
 aiohttp
+requests==2.32.3

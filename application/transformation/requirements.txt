@@ -14,3 +14,4 @@ pdfminer.six
 pymupdf
 cerebras_cloud_sdk
 boto3
+requests==2.32.3
