@@ -1,10 +1,11 @@
 import logging
 from typing import Dict, Any
-from common.models.enums.model_enums import ModelType, OpenAIModelName, AzureModelName, GroqModelName, CerebrasModelName
+from common.models.enums.model_enums import ModelType, OpenAIModelName, AzureModelName, GroqModelName, CerebrasModelName, MistralModelName
 from common.models.openai_model import OpenaiModel
 from common.models.azure_model import AzureModel
 from common.models.groq_model import GroqModel
 from common.models.cerebras_model import CerebrasModel
+from common.models.mistral_model import MistralModel
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,8 @@ class ModelFactory:
             ModelType.AZURE: ["api_version", "azure_endpoint", "azure_deployment"],
             ModelType.OPENAI: [],
             ModelType.GROQ: [],
-            ModelType.CEREBRAS: []
+            ModelType.CEREBRAS: [],
+            ModelType.MISTRAL: []
         }
 
         missing_params = []
@@ -43,7 +45,6 @@ class ModelFactory:
 
         if missing_params:
             raise ValueError(f"Missing required additional_params for {model_type}: {', '.join(missing_params)}")
-
         if model_type_enum == ModelType.OPENAI:
             OpenAIModelName(model_name)
             model_instance = OpenaiModel(**model_config)
@@ -56,6 +57,9 @@ class ModelFactory:
         elif model_type_enum == ModelType.CEREBRAS:
             CerebrasModelName(model_name)
             model_instance = CerebrasModel(**model_config)
+        elif model_type_enum == ModelType.MISTRAL:
+            MistralModelName(model_name)
+            model_instance = MistralModel(**model_config)
         else:
             raise ValueError(f"Unsupported model type: {model_type_enum}")
 
