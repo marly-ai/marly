@@ -293,7 +293,7 @@ async def retrieve_multi_page_metrics(
 
 async def process_page(file_stream: BytesIO, page: int) -> str:
     try:
-        content = extract_page_as_markdown(file_stream, page)
+        content = extract_page_as_markdown(file_stream, page) # TODO: This is where the OCR comes into play
         if not content:
             content = extract_page_as_markdown(file_stream, page)
         return content.decode('utf-8') if isinstance(content, bytes) else content

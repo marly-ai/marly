@@ -10,6 +10,12 @@ import time
 import fitz
 from concurrent.futures import ThreadPoolExecutor
 from common.prompts.prompt_enums import PromptType
+from azure.ai.formrecognizer import DocumentAnalysisClient
+from azure.core.credentials import AzureKeyCredential
+import os
+import hashlib
+import redis
+
 
 load_dotenv()
 
@@ -22,7 +28,9 @@ def get_pdf_page_count(pdf_stream):
     except PyPDF2.errors.PdfReadError as e:
         raise PyPDF2.errors.PdfReadError(f"Error reading PDF file: {str(e)}")
     
-def extract_page_as_markdown(pdf_stream: BytesIO, page_number: int) -> str:
+def extract_page_as_markdown_for_relevance(pdf_stream: BytesIO, page_number: int) -> str:
+    //#TODO This is the extraction for both relevant pages and processing?
+    # This is where I need to use convert pdf_to_image
     page_number -= 1
     with fitz.open(stream=pdf_stream, filetype="pdf") as doc:
         page = doc.load_page(page_number)
@@ -30,6 +38,47 @@ def extract_page_as_markdown(pdf_stream: BytesIO, page_number: int) -> str:
         if not markdown_text.strip():
             raise ValueError(f"Page {page_number + 1} does not contain any content.")
     return markdown_text
+
+
+def extract_page_as_markdown(pdf_stream: BytesIO, page_number: int) -> str:
+    # Create a unique identifier for the cache key
+    pdf_hash = hashlib.md5(pdf_stream.getvalue()).hexdigest()
+    cache_key = f"pdf_content:{pdf_hash}:{page_number}"
+
+    # Initialize Redis client
+    redis_client = redis.Redis(host='localhost', port=6379, db=0)  # Adjust connection details as needed
+
+    # Check if content is in cache
+    cached_content = redis_client.get(cache_key)
+    if cached_content:
+        return cached_content.decode('utf-8')
+    # Azure Document Intelligence endpoint and key
+    endpoint = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT")
+    key = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
+
+    if not endpoint or not key:
+        raise ValueError("Azure Document Intelligence endpoint or key not found in environment variables.")
+
+    # Create the Document Analysis client
+    document_analysis_client = DocumentAnalysisClient(
+        endpoint=endpoint, credential=AzureKeyCredential(key)
+    )
+
+    # Analyze the document
+    pdf_stream.seek(0)
+    poller = document_analysis_client.begin_analyze_document("prebuilt-read", pdf_stream)
+    result = poller.result()
+
+    # Extract text from the specified page
+    # Extract content from the entire document
+    document_content = result.content
+
+    # Clean and format the content
+    cleaned_content = document_content.strip()  # Remove leading/trailing whitespace
+    redis_client.set(cache_key, cleaned_content)
+
+    return cleaned_content
+    
 
 def process_page(client, prompt, page_number: int, page_text: str, formatted_keywords: str) -> int:
     try:
@@ -72,7 +121,7 @@ async def find_common_pages(client, file_stream: BytesIO, formatted_keywords: st
         with ThreadPoolExecutor(max_workers=10) as executor:
             tasks = []
             for page_number in range(len(pdf_reader.pages)):
-                page_text = extract_page_as_markdown(file_stream, page_number)
+                page_text = extract_page_as_markdown_for_relevance(file_stream, page_number)
                 task = loop.run_in_executor(executor, process_page, client, prompt, page_number, page_text, formatted_keywords)
                 tasks.append(task)
 
