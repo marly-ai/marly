@@ -13,6 +13,7 @@ class S3Integration(BaseSource):
         self.additional_params = additional_params or {}
         self.s3_client = boto3.client(
             's3',
+            region_name=self.additional_params.get('region_name'),
             aws_access_key_id=self.additional_params.get('aws_access_key_id'),
             aws_secret_access_key=self.additional_params.get('aws_secret_access_key'),
             aws_session_token=self.additional_params.get('aws_session_token')
