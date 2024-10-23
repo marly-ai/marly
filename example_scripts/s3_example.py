@@ -35,7 +35,7 @@ def process_pdf():
             provider_type="groq",
             workloads=[
                 {
-                    "file_name": "lacers_reduced.pdf",
+                    "file_name": S3_FILE_KEY,
                     "data_source": "s3",
                     "documents_location": S3_BUCKET_NAME,
                     "schemas": [json.dumps(SCHEMA_1)]
