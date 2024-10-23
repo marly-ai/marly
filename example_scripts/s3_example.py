@@ -10,8 +10,8 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-S3_BUCKET_NAME = "marlys3"
-S3_FILE_KEY = "lacers_reduced.pdf"
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+S3_FILE_KEY = os.getenv("S3_FILE_KEY")
 BASE_URL = "http://localhost:8100"
 
 SCHEMA_1 = {
