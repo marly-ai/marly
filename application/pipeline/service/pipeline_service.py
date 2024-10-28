@@ -50,6 +50,7 @@ async def run_pipeline(customer_input: PipelineRequestModel):
         f"job-status:{task_id}",
         {"status": json.dumps(JobStatus.PENDING.value), "start_time": str(start_time)}
     )
+
     try:
         ModelFactory.create_model(
             model_type=customer_input.provider_type,
@@ -74,6 +75,31 @@ async def run_pipeline(customer_input: PipelineRequestModel):
     })
     await con.set("model-details", model_details_json)
 
+    if is_transformation_only_job(customer_input.workloads):
+        logger.info("Transformation-only job detected")
+        return await handle_transformation(customer_input, con, task_id)
+    else:
+        logger.info("Full pipeline job detected")
+        return await handle_full_pipeline(customer_input, con, task_id)
+
+async def handle_transformation(customer_input: PipelineRequestModel, con: redis.Redis, task_id: str):
+    workload = customer_input.workloads[0]  # Assuming only one workload for transformation-only job
+    transformation_payload = {
+        "task_id": task_id,
+        "data_location_key": workload.documents_location,
+        "schemas": workload.schemas,
+        "destination": workload.destination,
+        "raw_data": workload.raw_data
+    }
+    await con.xadd("transformation-only-stream", {"payload": json.dumps(transformation_payload)})
+    
+    response = PipelineResponseModel(
+        message="Transformation task submitted successfully",
+        task_id=task_id
+    )
+    return {"task_id": response.task_id, "message": response.message}
+
+async def handle_full_pipeline(customer_input: PipelineRequestModel, con: redis.Redis, task_id: str):
     pdf_hash = hashlib.sha256(json.dumps([w.dict() for w in customer_input.workloads]).encode()).hexdigest()
     cache_key = f"cache:{pdf_hash}"
     cached_hash = await con.get(cache_key)
@@ -85,24 +111,22 @@ async def run_pipeline(customer_input: PipelineRequestModel):
 
     async def process_workload(index: int, workload_combo: WorkloadItem) -> int:
         try:
-            if workload_combo.pdf_stream and workload_combo.data_source:
-                logger.error(f"Workload {index} cannot have both pdf_stream and data_source.")
-                raise ValueError("Workload cannot have both pdf_stream and data_source.")
-            if workload_combo.pdf_stream:
-                return await handle_pdf_stream(index, workload_combo, con, task_id)
+            if workload_combo.raw_data and workload_combo.data_source:
+                logger.error(f"Workload {index} cannot have both raw_data and data_source.")
+                raise ValueError("Workload cannot have both raw_data and data_source.")
+            if workload_combo.raw_data:
+                return await handle_raw_data(index, workload_combo, con, task_id)
             elif workload_combo.data_source == "web":
                 return await handle_web_source(index, workload_combo, con, task_id)
             elif workload_combo.data_source:
                 return await handle_data_source(index, workload_combo, con, task_id)
             else:
-                logger.error(f"Workload {index} must have either pdf_stream or data_source.")
+                logger.error(f"Workload {index} must have either raw_data or data_source.")
                 return 0
-
         except Exception as e:
             logger.error(f"Error processing workload {index}: {e}")
             return 0
 
-    # Process all workloads concurrently
     workload_results = await asyncio.gather(
         *[process_workload(index, workload_combo) for index, workload_combo in enumerate(customer_input.workloads)],
         return_exceptions=False
@@ -111,7 +135,6 @@ async def run_pipeline(customer_input: PipelineRequestModel):
     total_pages = sum(workload_results)
     logger.info(f"Total pages processed: {total_pages}")
 
-    # Update job status to IN_PROGRESS
     await con.xadd(
         f"job-status:{task_id}",
         {"status": json.dumps(JobStatus.IN_PROGRESS.value)}
@@ -128,34 +151,46 @@ async def run_pipeline(customer_input: PipelineRequestModel):
 
     return {"task_id": response.task_id, "message": response.message}
 
-async def handle_pdf_stream(index: int, workload_combo: WorkloadItem, con: redis.Redis, task_id: str) -> int:
-    logger.info(f"Processing workload {index} with pdf_stream.")
-    # Decode the base64 encoded PDF stream
+def is_transformation_only_job(workloads: List[WorkloadItem]) -> bool:
+    if len(workloads) != 1:
+        return False
+    workload = workloads[0]
+    return (
+        workload.destination is not None and
+        workload.documents_location is not None and
+        workload.schemas is not None and
+        workload.raw_data is not None and
+        workload.data_source is None
+    )
+
+async def handle_raw_data(index: int, workload_combo: WorkloadItem, con: redis.Redis, task_id: str) -> int:
+    logger.info(f"Processing workload {index} with raw_data.")
+    # Decode the base64 encoded data stream
     try:
-        decompressed_pdf = zlib.decompress(base64.b64decode(workload_combo.pdf_stream))
+        decompressed_data = zlib.decompress(base64.b64decode(workload_combo.raw_data))
     except zlib.error as e:
         logger.error(f"Decompression failed for workload {index}: {e}")
         return 0
 
-    pdf_cursor = BytesIO(decompressed_pdf)
-    logger.info(f"Decompressed PDF for workload {index}")
+    data_cursor = BytesIO(decompressed_data)
+    logger.info(f"Decompressed data for workload {index}")
 
     try:
-        page_count = get_pdf_page_count(pdf_cursor)
+        page_count = get_pdf_page_count(data_cursor)
         logger.debug(f"Page count for workload {index}: {page_count}")
     except Exception as e:
         logger.error(f"Error getting page count for workload {index}: {e}")
         return 0
 
-    pdf_key = f"pdf:{task_id}:{index}"
-    await con.set(pdf_key, base64.b64encode(decompressed_pdf).decode())
-    logger.info(f"PDF stored in Redis with key: {pdf_key} as base64 string")
+    data_key = f"data:{task_id}:{index}"
+    await con.set(data_key, base64.b64encode(decompressed_data).decode())
+    logger.info(f"Data stored in Redis with key: {data_key} as base64 string")
 
     schemas = [json.loads(schema) for schema in workload_combo.schemas]
 
     task_payload = ExtractionRequestModel(
         task_id=task_id,
-        pdf_key=pdf_key,
+        pdf_key=data_key,
         schemas=schemas
     )
 
@@ -396,3 +431,8 @@ async def get_pipeline_results(task_id: str):
     )
 
     return response.dict()
+
+
+
+
+

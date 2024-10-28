@@ -9,12 +9,13 @@ class JobStatus(str, Enum):
     FAILED = "FAILED"
 
 class WorkloadItem(BaseModel):
-    pdf_stream: str = Field(default=None)
+    raw_data: str = Field(default=None)
     schemas: List[str]
     data_source: str = Field(default=None)
     documents_location: str = Field(default=None)
     file_name: str = Field(default=None)
     additional_params: Dict[str, Any] = Field(default_factory=dict)
+    destination: str = Field(default=None)
 
 class PipelineRequestModel(BaseModel):
     workloads: List[WorkloadItem]

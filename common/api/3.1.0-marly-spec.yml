@@ -55,34 +55,32 @@ components:
     WorkloadItem:
       type: object
       properties:
-        pdf_stream:
+        raw_data:
           type: string
-          format: base64
-          description: Base64 encoded and zlib compressed PDF content
+          description: string version of raw data (can be a pdf, html, text, etc.)
         schemas:
           type: array
           items:
             type: string
-          description: JSON strings representing extraction schemas
+          description: List of schema strings
         data_source:
           type: string
-          description: Source of the data (e.g., 'local', 's3')
+          description: Type of data source
         documents_location:
           type: string
-          description: Location of the documents (e.g., S3 bucket name, file path)
+          description: Location of documents
         file_name:
           type: string
           description: Name of the file
         additional_params:
           type: object
-          description: Additional parameters for the data source, including authentication details
           additionalProperties: true
+          description: Additional parameters for the workload
+        destination:
+          type: string
+          description: Destination for the processed data
       required:
-        - pdf_stream
         - schemas
-        - data_source
-        - documents_location
-        - file_name
 
     PipelineRequestModel:
       type: object
@@ -91,24 +89,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WorkloadItem"
-          description: Array of workload objects containing PDF content and schemas
         provider_type:
           type: string
-          description: Type of AI provider (e.g., 'azure', 'openai', 'groq', 'cerebras')
         provider_model_name:
           type: string
-          description: Name of the AI model to use
         api_key:
           type: string
-          description: API key for the AI provider
         markdown_mode:
           type: boolean
-          description: Flag to enable markdown mode
           default: false
         additional_params:
           type: object
           additionalProperties: true
-          description: Additional parameters specific to the AI provider
       required:
         - workloads
         - provider_type
