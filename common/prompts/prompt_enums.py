@@ -6,5 +6,6 @@ class PromptType(Enum):
     TRANSFORMATION = "marly/transformation"
     TRANSFORMATION_MARKDOWN = "noahegg/tranformation-markdown"
     TRANSFORMATION_WEB = "noahegg/web_scraper"
+    TRANSFORMATION_ONLY = "marly/transformation-only"
     VALIDATION = "marly/validation"
     RELEVANT_PAGE_FINDER = "marly/relevant-page-finder"

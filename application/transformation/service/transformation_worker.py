@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from datetime import datetime
@@ -9,9 +9,10 @@ from application.transformation.models.models import (
     TransformationRequestModel,
     TransformationResponseModel,
     SchemaResult,
-    JobStatus
+    JobStatus,
+    TransformationOnlyRequestModel
 )
-from application.transformation.service.transformation_handler import run_transformation
+from application.transformation.service.transformation_handler import run_transformation, run_transformation_only
 from common.redis.redis_config import get_redis_connection
 
 logging.basicConfig(level=logging.INFO)
@@ -20,12 +21,16 @@ logger = logging.getLogger(__name__)
 async def run_transformations() -> None:
     logger.info("Starting transformation worker")
     redis = await get_redis_connection()
-    last_id = "0-0"
+    last_id_transformation = "0-0"
+    last_id_transformation_only = "0-0"
 
     while True:
         try:
             result = await redis.xread(
-                streams={"transformation-stream": last_id},
+                streams={
+                    "transformation-stream": last_id_transformation,
+                    "transformation-only-stream": last_id_transformation_only
+                },
                 count=1,
                 block=0
             )
@@ -38,57 +43,86 @@ async def run_transformations() -> None:
                     if payload:
                         try:
                             logger.info(f"Payload value: {payload}")
-                            transformation_request = TransformationRequestModel(**json.loads(payload.decode('utf-8')))
-                            transformation_result = await process_transformation(transformation_request)
+                            payload_dict = json.loads(payload.decode('utf-8'))
+                            if stream_name == b"transformation-stream":
+                                request = TransformationRequestModel(**payload_dict)
+                            else:
+                                request = TransformationOnlyRequestModel(**payload_dict)
+                            transformation_result = await process_transformation(request)
                             serialized_result = json.dumps(transformation_result.dict())
-                            logger.info(f"Publishing result to results stream for task {transformation_request.task_id}: {serialized_result}")
-                            await redis.xadd(f"results-stream:{transformation_request.task_id}", {"payload": serialized_result})
-                            logger.info(f"Successfully published result to results stream for task {transformation_request.task_id}")
-                            await update_job_status(redis, transformation_request.task_id, JobStatus.COMPLETED, serialized_result)
+                            logger.info(f"Publishing result to results stream for task {request.task_id}: {serialized_result}")
+                            await redis.xadd(f"results-stream:{request.task_id}", {"payload": serialized_result})
+                            logger.info(f"Successfully published result to results stream for task {request.task_id}")
+                            await update_job_status(redis, request.task_id, JobStatus.COMPLETED, serialized_result)
                         except json.JSONDecodeError as e:
                             logger.error(f"Failed to parse payload JSON: {e}")
                         except Exception as e:
                             logger.error(f"Error processing transformation task: {e}")
                     else:
                         logger.error("Message does not contain 'payload' field")
-                    last_id = message_id
+                    
+                    if stream_name == b"transformation-stream":
+                        last_id_transformation = message_id
+                    elif stream_name == b"transformation-only-stream":
+                        last_id_transformation_only = message_id
 
         except RedisError as e:
             logger.error(f"Error reading from Redis stream: {e}")
             await asyncio.sleep(1)
 
-async def process_transformation(transformation_request: TransformationRequestModel) -> TransformationResponseModel:
+async def process_transformation(
+    transformation_request: Union[TransformationRequestModel, TransformationOnlyRequestModel]
+) -> TransformationResponseModel:
+    redis = await get_redis_connection()
     try:
         transformed_results = []
-        for index, schema_result in enumerate(transformation_request.results):
-            logger.info(f"Processing schema result {index}: {schema_result}")
-            try:
-                transformed_metrics = await run_transformation(schema_result.metrics, schema_result.schema_data, transformation_request.source_type)
-                transformed_results.append(
-                    SchemaResult(
-                        schema_id=schema_result.schema_id,
-                        metrics=transformed_metrics,
-                        schema_data=schema_result.schema_data
-                    )
+
+        if isinstance(transformation_request, TransformationOnlyRequestModel):
+            transformed_metrics = await run_transformation_only(
+                task_id=transformation_request.task_id,
+                data_location_key=transformation_request.data_location_key,
+                schemas=transformation_request.schemas,
+                destination=transformation_request.destination,
+                raw_data=transformation_request.raw_data
+            )
+            if isinstance(transformed_metrics, str):
+                transformed_metrics = json.loads(transformed_metrics)
+            
+            transformed_results.append(SchemaResult(
+                schema_id=f"{transformation_request.task_id}-transformation_only",
+                schema_data={}, 
+                metrics=transformed_metrics
+            ))
+        else:
+            for schema_result in transformation_request.results:
+                transformed_metrics = await run_transformation(
+                    metrics=schema_result.metrics,
+                    schema=schema_result.schema_data,
+                    source_type=transformation_request.source_type
                 )
-            except Exception as schema_error:
-                logger.error(f"Error processing schema result {index}: {schema_error}")
-                raise
+                if isinstance(transformed_metrics, str):
+                    transformed_metrics = json.loads(transformed_metrics)
+                
+                transformed_results.append(SchemaResult(
+                    schema_id=schema_result.schema_id,
+                    schema_data=schema_result.schema_data,
+                    metrics=transformed_metrics
+                ))
 
         response = TransformationResponseModel(
             task_id=transformation_request.task_id,
-            pdf_key=transformation_request.pdf_key,
+            pdf_key=transformation_request.data_location_key if isinstance(transformation_request, TransformationOnlyRequestModel) else transformation_request.pdf_key,
             results=transformed_results
         )
 
-        redis = await get_redis_connection()
-        await update_job_status(redis, transformation_request.task_id, JobStatus.COMPLETED, None)
+        serialized_result = json.dumps(response.dict(), indent=None, separators=(',', ':'))
+        
+        await update_job_status(redis, transformation_request.task_id, JobStatus.COMPLETED, serialized_result)
+        logger.info(f"Transformation completed successfully for task_id: {transformation_request.task_id}")
 
         return response
-
     except Exception as e:
-        logger.error(f"Error processing transformation task: {e}")
-        redis = await get_redis_connection()
+        logger.error(f"Error processing transformation task {transformation_request.task_id}: {e}")
         await update_job_status(redis, transformation_request.task_id, JobStatus.FAILED, str(e))
         raise
 
@@ -111,7 +145,7 @@ async def update_job_status(
 
     await redis.xadd(f"job-status:{task_id}", fields)
 
-async def clear_transformation_stream() -> None:
+async def clear_transformation_streams() -> None:
     retries = 0
     max_retries = 5
     delay = 1
@@ -120,7 +154,8 @@ async def clear_transformation_stream() -> None:
         try:
             redis = await get_redis_connection()
             await redis.xtrim("transformation-stream", approximate=True, maxlen=0)
-            logger.info("Cleared transformation-stream")
+            await redis.xtrim("transformation-only-stream", approximate=True, maxlen=0)
+            logger.info("Cleared transformation-stream and transformation-only-stream")
             return
         except RedisError as e:
             if "LOADING" in str(e):
@@ -131,4 +166,4 @@ async def clear_transformation_stream() -> None:
             else:
                 raise e
 
-    raise Exception("Failed to clear transformation-stream after maximum retries")
+    raise Exception("Failed to clear transformation streams after maximum retries")

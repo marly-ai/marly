@@ -7,6 +7,14 @@ class TransformationRequestModel(BaseModel):
     pdf_key: str
     results: List['SchemaResult']
     source_type: str = "pdf"
+    destination: str = None
+
+class TransformationOnlyRequestModel(BaseModel):
+    task_id: str
+    data_location_key: str
+    schemas: List[str]
+    destination: str
+    raw_data: str
 
 class TransformationResponseModel(BaseModel):
     task_id: str

@@ -41,13 +41,13 @@ def process_pdf(pdf_file):
             api_key=os.getenv("CEREBRAS_API_KEY"),
             provider_model_name="llama3.1-70b",
             provider_type="cerebras",
-            workloads=[{"pdf_stream": pdf_content, "schemas": [json.dumps(SCHEMA_1)]}],
+            workloads=[{"raw_data": pdf_content, "schemas": [json.dumps(SCHEMA_1)]}],
         )
 
         while True:
             results = client.pipelines.retrieve(pipeline_response.task_id)
             if results.status == 'COMPLETED':
-                return json.dumps([json.loads(results.results[0].metrics[f'schema_{i}']) for i in range(len(results.results[0].metrics))])
+                return results.results
             elif results.status == 'FAILED':
                 return None
             time.sleep(15)

@@ -47,7 +47,7 @@ def process_pdf(pdf_file):
             markdown_mode = True,
             workloads=[
                 {
-                    "pdf_stream": pdf_content,
+                    "raw_data": pdf_content,
                     "schemas": [json.dumps(schema_1)],
                 }
             ],

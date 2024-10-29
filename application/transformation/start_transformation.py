@@ -2,7 +2,7 @@ import os
 import logging
 from dotenv import load_dotenv
 import asyncio
-from application.transformation.service.transformation_worker import clear_transformation_stream, run_transformations
+from application.transformation.service.transformation_worker import clear_transformation_streams, run_transformations
 
 load_dotenv()
 
@@ -11,9 +11,9 @@ logging.basicConfig(level=logging.INFO,
 
 async def main():
     try:
-        await clear_transformation_stream()
+        await clear_transformation_streams()
     except Exception as e:
-        logging.error("Failed to clear transformation-stream: %s", e)
+        logging.error("Failed to clear transformation streams: %s", e)
 
     try:
         logging.info("Started transformation service...")

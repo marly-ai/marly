@@ -7,6 +7,7 @@ class ExtractionRequestModel(BaseModel):
     pdf_key: str
     schemas: List[Dict]
     source_type: str = "pdf"
+    destination: str = None
 
 class SchemaResult(BaseModel):
     schema_id: str
