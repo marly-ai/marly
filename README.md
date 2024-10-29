@@ -10,7 +10,7 @@
 
 ---
 
-Marly allows your agents to extract tables & text from your PDFs, Powerpoints, etc in a structured format making it easy for them to take subsequent actions (database call, API call, creating a chart etc).
+Marly allows your agents to extract tables & text from your PDFs, Powerpoints, websites, etc in a structured format making it easy for them to take subsequent actions (database call, API call, creating a chart etc).
 
 <img src="https://github.com/noaheggenschwiler/images/blob/main/marly-diagram-docs.png?raw=true" alt="Marly Logo">
 
@@ -18,7 +18,7 @@ Marly allows your agents to extract tables & text from your PDFs, Powerpoints, e
 
 ## 🚀 Features
 
-- 📄 Give your agents the ability to find whats relevant from large documents, extract it and get it back in JSON with a single API call.
+- 📄 Give your agents the ability to find whats relevant from large documents and websites, extract it and get it back in JSON with a single API call.
 - 🔍 Extract data based on multiple schemas from numerous documents without a vector database or specifying page numbers
 - 🔄 Built-in caching to enable instant retrieval of previously extracted schemas, allowing for rapid repeat extractions without reprocessing the original documents.
 
@@ -102,6 +102,7 @@ docker-compose up --build
    ```bash
    cd example_scripts
    ```
+
    or
 
    ```bash
