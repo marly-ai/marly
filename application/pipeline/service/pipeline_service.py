@@ -35,7 +35,7 @@ async def run_pipeline(customer_input: PipelineRequestModel):
     logger.info("Starting Pipeline Run...")
 
     try:
-        con = await redis.from_url("redis://localhost:6379/0", encoding="utf-8", decode_responses=True) #TODO Change
+        con = await redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True) #TODO Change
     except Exception as e:
         logger.error(f"Redis connection error: {e}")
         return {
@@ -300,7 +300,7 @@ async def get_relevant_file_via_llm(filenames: List[str], file_name: str) -> Opt
         return None
 
     try:
-        con = await redis.from_url("redis://localhost:6379/0", encoding="utf-8", decode_responses=True)
+        con = await redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True)
         customer_input_str = await con.get("model-details")
         logger.info(f"Model details JSON: {customer_input_str}")
         if not customer_input_str:
@@ -353,7 +353,7 @@ async def get_results_from_stream(con: redis.Redis, task_id: str) -> List[Dict]:
 
 async def get_pipeline_results(task_id: str):
     try:
-        con = await redis.from_url("redis://localhost:6379/0", encoding="utf-8", decode_responses=True)
+        con = await redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True)
     except Exception as e:
         logger.error(f"Failed to connect to Redis: {e}")
         return {"error": "Failed to connect to Redis"}, 500

@@ -1,0 +1,196 @@
+[
+    {
+        "schema_id": "schema_0",
+        "metrics": {
+            "Firm": [
+                "Vista Equity Partners",
+                "ABRY Partners",
+                "Advent International",
+                "Thoma Bravo",
+                "Platinum Equity",
+                "Spark Management Partners",
+                "New Enterprise Associates",
+                "Technology Crossover Ventures",
+                "EnCap Investments",
+                "Hellman & Friedman"
+            ],
+            "Number of Funds": [
+                7,
+                6,
+                5,
+                5,
+                4,
+                6,
+                4,
+                5,
+                4,
+                5
+            ],
+            "Commitment": [
+                185,
+                145,
+                145,
+                90,
+                112.5,
+                93.75,
+                95,
+                104.5,
+                120,
+                100.46
+            ],
+            "Percent of Total Comm": [
+                "3.6%",
+                "2.8%",
+                "2.8%",
+                "1.8%",
+                "2.2%",
+                "1.8%",
+                "1.9%",
+                "2.0%",
+                "2.3%",
+                "2.0%"
+            ],
+            "Exposure (FMV + Unfunded)": [
+                192.36,
+                146.95,
+                132.32,
+                119.16,
+                105.73,
+                104.05,
+                103.57,
+                100.48,
+                97.54,
+                91.82
+            ],
+            "Percent of Total Exposure": [
+                "5.4%",
+                "4.2%",
+                "3.7%",
+                "3.4%",
+                "3.0%",
+                "2.9%",
+                "2.9%",
+                "2.8%",
+                "2.8%",
+                "2.6%"
+            ],
+            "TVPI": [
+                "2.07x",
+                "1.25x",
+                "1.64x",
+                "1.85x",
+                "1.64x",
+                "2.42x",
+                "1.60x",
+                "1.95x",
+                "1.11x",
+                "2.09x"
+            ],
+            "Net IRR": [
+                "22.2%",
+                "9.6%",
+                "16.0%",
+                "24.7%",
+                "28.5%",
+                "27.4%",
+                "15.7%",
+                "14.9%",
+                "4.5%",
+                "20.3%"
+            ]
+        },
+        "schema_data": {
+            "Firm": "The name of the firm",
+            "Number of Funds": "The number of funds managed by the firm",
+            "Commitment": "The commitment amount in millions of dollars",
+            "Percent of Total Comm": "The percentage of total commitment",
+            "Exposure (FMV + Unfunded)": "The exposure including fair market value and unfunded commitments in millions of dollars",
+            "Percent of Total Exposure": "The percentage of total exposure",
+            "TVPI": "Total Value to Paid-In multiple",
+            "Net IRR": "Net Internal Rate of Return as a percentage"
+        },
+        "task_id": "a959ba75-d0db-44dc-9958-e1a1933f4595",
+        "pdf_key": "pdf:a959ba75-d0db-44dc-9958-e1a1933f4595:0"
+    },
+    {
+        "schema_id": "schema_0",
+        "metrics": {
+            "Author": [
+                "Ashish Vaswani",
+                "Noam Shazeer",
+                "Niki Parmar",
+                "Jakob Uszkoreit",
+                "Llion Jones",
+                "Aidan N. Gomez",
+                "\u0141ukasz Kaiser"
+            ],
+            "Institution": [
+                "Google Brain",
+                "Google Brain",
+                "Google Research",
+                "Google Research",
+                "Google Research",
+                "University of Toronto",
+                "Google Brain"
+            ],
+            "Email": [
+                "avaswani@google.com",
+                "noam@google.com",
+                "nikip@google.com",
+                "usz@google.com",
+                "llion@google.com",
+                "aidan@cs.toronto.edu",
+                "lukaszkaiser@google.com"
+            ]
+        },
+        "schema_data": {
+            "Author": "The authors first name and last name",
+            "Institution": "The company, school, or institution most closely related to the author",
+            "Email": "The authors email address"
+        },
+        "task_id": "a959ba75-d0db-44dc-9958-e1a1933f4595",
+        "pdf_key": "pdf:a959ba75-d0db-44dc-9958-e1a1933f4595:1"
+    },
+    {
+        "schema_id": "schema_0",
+        "metrics": {
+            "Names": [
+                "Michael Truell",
+                "Sualeh Asif",
+                "Arvid Lunnemark",
+                "Aman Sanger"
+            ],
+            "Company Name": [
+                "Anysphere"
+            ],
+            "Round": [
+                "Series A"
+            ],
+            "Round Size": [
+                "$60 million"
+            ],
+            "Investors": [
+                "Andreessen Horowitz",
+                "Thrive Capital",
+                "Patrick Collison"
+            ],
+            "Company Valuation": [
+                "$400 million"
+            ],
+            "Summary": [
+                "Anysphere, a two-year-old startup, has developed an AI-powered coding assistant called Cursor. The company has raised $60 million in a Series A round co-led by Andreessen Horowitz and Thrive Capital. Co-founders include Michael Truell, Sualeh Asif, Arvid Lunnemark, and Aman Sanger."
+            ]
+        },
+        "schema_data": {
+            "Names": "The first name and last name of the company founders",
+            "Company Name": "Name of the Company",
+            "Round": "The round of funding",
+            "Round Size": "How much money has the company raised",
+            "Investors": "The names of the investors in the companies (names of investors and firms)",
+            "Company Valuation": "The current valuation of the company",
+            "Summary": "Three sentence summary of the company"
+        },
+        "task_id": "a959ba75-d0db-44dc-9958-e1a1933f4595",
+        "pdf_key": "web:a959ba75-d0db-44dc-9958-e1a1933f4595:2"
+    }
+]

@@ -17,3 +17,10 @@ boto3
 beautifulsoup4
 aiohttp
 requests==2.32.3
+azure-core
+azure-common
+azure-ai-formrecognizer
+azure-ai-documentintelligence
+PyMuPDF
+Pillow
+portkey-ai

@@ -34,7 +34,7 @@ def read_and_encode_pdf(file_path):
 def process_pdf(pdf_file):
     pdf_content = read_and_encode_pdf(pdf_file)
 
-    client = Marly(base_url="http://localhost:8100")
+    client = Marly(base_url="http://redis:8100")
 
     try:
         pipeline_response = client.pipelines.create(

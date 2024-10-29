@@ -15,3 +15,9 @@ pymupdf
 cerebras_cloud_sdk
 aiohttp
 requests==2.32.3
+azure-core
+azure-common
+azure-ai-formrecognizer
+azure-ai-documentintelligence
+Pillow
+portkey-ai
