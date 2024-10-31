@@ -14,6 +14,11 @@ COPY ./application/pipeline/requirements.txt /app/requirements.txt
 # Copy example files
 COPY ./examples/example_files /app/example_files
 
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
