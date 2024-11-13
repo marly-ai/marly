@@ -97,7 +97,9 @@ To build the platform from source, run the following command:
 
 ### Run an Example Extraction or Notebook
 
-1. Navigate to the example examples folder:
+Once the Marly platform is running you can test it out by trying one of our examples
+
+1. Navigate to the examples folder:
 
    ```bash
    cd examples
