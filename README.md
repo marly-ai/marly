@@ -30,7 +30,7 @@ Marly allows you to search and extract context specific data from your PDFs, WRD
 
 ## 🧰 What is a Schema?
 
-A schema is a set of key-value pairs describing what needs to be extracted from a particular document (JSON format).
+A schema is a set of key-value pairs describing what needs to be extracted from a particular document.
 
 <details>
 <summary>📋 Example Schema</summary>
