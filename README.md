@@ -107,7 +107,7 @@ To build the platform from source, run the following command:
    ```bash
    cd scripts 
    ```
-3. Run the example extraction script:
+3. Run one of our example scripts:
    ```bash
    python azure_example.py
    ```
