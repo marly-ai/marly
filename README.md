@@ -134,6 +134,6 @@ We welcome contributions! Please see our [Contributing Guide](https://docs.marly
 
 ## 📄 License
 
-This project is licensed under the [MIT License](https://opensource.org/license/mit).
+This project is licensed under the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
 
 </div>
