@@ -89,8 +89,8 @@ pip install marly
 
 To build the platform from source, run the following command:
 
-```
-docker-compose up --build
+```bash
+./start-marly.sh
 ```
 
 ---
