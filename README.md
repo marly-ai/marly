@@ -18,7 +18,7 @@ Marly allows you to search for and extract tables/data from your PDFs, Powerpoin
 
 ## 🚀 Features
 
-- 📄 Give your applications the ability to find whats relevant from large documents and websites, extract it and get it back in JSON with a single API call.
+- 📄 Give your applications the ability to find whats relevant from large documents and websites, extract it and get it back in JSON or Markdown with a single API call.
 - 🔍 Extract data based on multiple schemas from numerous documents without a vector database or specifying page numbers
 - 🔄 Built-in caching to enable instant retrieval of previously extracted schemas, allowing for rapid repeat extractions without reprocessing the original documents.
 
