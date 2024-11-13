@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ ! -x "$0" ]; then
+    echo -e "${RED}Error: Script doesn't have execute permissions${NC}"
+    echo "Please run: chmod +x $0"
+    exit 1
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -131,14 +137,22 @@ if [ ! -z "${MISTRAL_API_KEY}" ]; then
 fi
 
 if [ "$provider_configured" = false ]; then
-    echo -e "${RED}Error: No AI provider credentials found in .env file${NC}"
-    echo -e "Please configure at least one of the following providers:"
+    echo -e "${YELLOW}Warning: No AI Model provider credentials found in .env file${NC}"
+    echo -e "These are some of the model providers that are supported:"
     echo -e "- Azure OpenAI (AZURE_OPENAI_API_KEY + related vars)"
     echo -e "- OpenAI (OPENAI_API_KEY)"
     echo -e "- Cerebras (CEREBRAS_API_KEY)"
     echo -e "- Groq (GROQ_API_KEY)"
     echo -e "- Mistral (MISTRAL_API_KEY)"
-    exit 1
+    echo -e "\n${YELLOW}Are you sure you want to continue without any of these providers configured? (yes/no)${NC}"
+    read -r answer
+    
+    if [ "$(echo $answer | tr '[:upper:]' '[:lower:]')" = "yes" ]; then
+        echo -e "${YELLOW}Continuing without provider configuration. Please ensure your desired AI model provider is supported by Marly.${NC}"
+    else
+        echo -e "${RED}Please configure at least one provider in your .env file${NC}"
+        exit 1
+    fi
 fi
 
 
