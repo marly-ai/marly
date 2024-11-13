@@ -138,6 +138,6 @@ We welcome contributions! Please see our [Contributing Guide](https://docs.marly
 
 ## 📄 License
 
-This project is licensed under the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
+This project is licensed under the [AGPL-3.0 license](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text).
 
 </div>
