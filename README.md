@@ -95,7 +95,7 @@ To build the platform from source, run the following command:
 
 ---
 
-### Run an Example Extraction or Notebook
+### Run an example script or notebook
 
 Once the Marly platform is running you can test it out by trying one of our examples
 
