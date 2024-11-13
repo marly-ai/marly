@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ ! -x "$0" ]; then
+    echo -e "${RED}Error: Script doesn't have execute permissions${NC}"
+    echo "Please run: chmod +x $0"
+    exit 1
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
