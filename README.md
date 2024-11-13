@@ -107,7 +107,7 @@ Once the Marly platform is running you can test it out by trying one of our exam
 2. Navigate to the scripts or notebooks folder:
 
    ```bash
-   cd scripts 
+   cd scripts // or cd notebooks/autogen_example 
    ```
 3. Run one of our example scripts:
    ```bash
