@@ -10,7 +10,7 @@
 
 ---
 
-Marly allows you to search and extract context specific data from your PDFs, WRDs, Powerpoints, Websites etc in a structured format like JSON or Markdown.
+Marly allows you to search for and extract context specific data from your PDFs, WRDs, Powerpoints, Websites etc in a structured format like JSON or Markdown.
 
 <img src="https://github.com/noaheggenschwiler/images/blob/main/updated-marly-diagram.png?raw=true" alt="Marly Logo">
 
