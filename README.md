@@ -18,9 +18,9 @@ Marly allows you to search and extract context specific data from your PDFs, WRD
 
 ## 🚀 Features
 
-📄 Extract Relevant Information Seamlessly: Give your applications the ability to identify and extract relevant data from large documents or websites with just a single API call. Retrieve content in JSON or Markdown formats, making it easy to integrate into your workflows.
+📄 Extract Relevant Information Seamlessly: Give your applications the ability to identify and extract relevant data from one or many large documents and websites with just a single API call. Get the content back in JSON or Markdown formats, making it easy to integrate into your workflows.
 
-🔍 Multi-Schema Support: Extract data based on multiple predefined schemas from a variety of document types, without needing a vector database or specifying page numbers. Flexibly tailor your extraction to meet your specific needs.
+🔍 Multi-Schema/Multi-Document Support: Extract data based one or many predefined schemas from a variety of document types, without needing a vector database or specifying page numbers.
 
 🔄 Built-in Caching: With built-in caching, previously extracted schemas can be instantly retrieved, enabling rapid repeat extractions without having to reprocess the original documents.
 
