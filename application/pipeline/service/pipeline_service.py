@@ -83,7 +83,7 @@ async def run_pipeline(customer_input: PipelineRequestModel):
         return await handle_full_pipeline(customer_input, con, task_id)
 
 async def handle_transformation(customer_input: PipelineRequestModel, con: redis.Redis, task_id: str):
-    workload = customer_input.workloads[0]  # Assuming only one workload for transformation-only job
+    workload = customer_input.workloads[0]
     transformation_payload = {
         "task_id": task_id,
         "data_location_key": workload.documents_location,
@@ -100,6 +100,8 @@ async def handle_transformation(customer_input: PipelineRequestModel, con: redis
     return {"task_id": response.task_id, "message": response.message}
 
 async def handle_full_pipeline(customer_input: PipelineRequestModel, con: redis.Redis, task_id: str):
+    await con.set(f"workload-count:{task_id}", len(customer_input.workloads))
+    
     pdf_hash = hashlib.sha256(json.dumps([w.dict() for w in customer_input.workloads]).encode()).hexdigest()
     cache_key = f"cache:{pdf_hash}"
     cached_hash = await con.get(cache_key)

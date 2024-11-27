@@ -23,6 +23,8 @@ async def run_transformations() -> None:
     redis = await get_redis_connection()
     last_id_transformation = "0-0"
     last_id_transformation_only = "0-0"
+    
+    task_workloads = {}
 
     while True:
         try:
@@ -34,32 +36,48 @@ async def run_transformations() -> None:
                 count=1,
                 block=0
             )
-            logger.info(f"Result: {result}")
-
+            
             for stream_name, messages in result:
                 for message_id, message in messages:
                     logger.info(f"Received message from stream {stream_name}: ID {message_id}")
                     payload = message.get(b"payload")
                     if payload:
                         try:
-                            logger.info(f"Payload value: {payload}")
                             payload_dict = json.loads(payload.decode('utf-8'))
+                            
                             if stream_name == b"transformation-stream":
                                 request = TransformationRequestModel(**payload_dict)
                             else:
                                 request = TransformationOnlyRequestModel(**payload_dict)
+                            
+                            if request.task_id not in task_workloads:
+                                total_workloads = await get_total_workloads(redis, request.task_id)
+                                task_workloads[request.task_id] = {
+                                    'total': total_workloads,
+                                    'completed': 0
+                                }
+                            
+                            existing_results = await get_existing_results(redis, request.task_id)
                             transformation_result = await process_transformation(request)
-                            serialized_result = json.dumps(transformation_result.dict())
-                            logger.info(f"Publishing result to results stream for task {request.task_id}: {serialized_result}")
+                            merged_results = merge_results(existing_results, transformation_result)
+                            
+                            serialized_result = json.dumps(merged_results.dict())
                             await redis.xadd(f"results-stream:{request.task_id}", {"payload": serialized_result})
-                            logger.info(f"Successfully published result to results stream for task {request.task_id}")
-                            await update_job_status(redis, request.task_id, JobStatus.COMPLETED, serialized_result)
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Failed to parse payload JSON: {e}")
+                            
+                            task_workloads[request.task_id]['completed'] += 1
+                            
+                            if task_workloads[request.task_id]['completed'] == task_workloads[request.task_id]['total']:
+                                logger.info(f"All workloads completed for task {request.task_id}")
+                                await update_job_status(redis, request.task_id, JobStatus.COMPLETED, serialized_result)
+                                del task_workloads[request.task_id]  # Cleanup
+                            else:
+                                await update_job_status(redis, request.task_id, JobStatus.IN_PROGRESS, None)
+                            
                         except Exception as e:
                             logger.error(f"Error processing transformation task: {e}")
-                    else:
-                        logger.error("Message does not contain 'payload' field")
+                            await update_job_status(redis, request.task_id, JobStatus.FAILED, str(e))
+                            if request.task_id in task_workloads:
+                                del task_workloads[request.task_id]
                     
                     if stream_name == b"transformation-stream":
                         last_id_transformation = message_id
@@ -115,11 +133,6 @@ async def process_transformation(
             results=transformed_results
         )
 
-        serialized_result = json.dumps(response.dict(), indent=None, separators=(',', ':'))
-        
-        await update_job_status(redis, transformation_request.task_id, JobStatus.COMPLETED, serialized_result)
-        logger.info(f"Transformation completed successfully for task_id: {transformation_request.task_id}")
-
         return response
     except Exception as e:
         logger.error(f"Error processing transformation task {transformation_request.task_id}: {e}")
@@ -144,6 +157,37 @@ async def update_job_status(
     fields["total_run_time"] = run_time_str
 
     await redis.xadd(f"job-status:{task_id}", fields)
+
+async def get_existing_results(redis: Redis, task_id: str) -> Optional[TransformationResponseModel]:
+    try:
+        entries = await redis.xrevrange(f"results-stream:{task_id}", count=1)
+        if entries:
+            _, message = entries[0]
+            payload = message.get(b"payload")
+            if payload:
+                return TransformationResponseModel(**json.loads(payload.decode('utf-8')))
+    except Exception as e:
+        logger.error(f"Error getting existing results: {e}")
+    return None
+
+def merge_results(existing: Optional[TransformationResponseModel], new: TransformationResponseModel) -> TransformationResponseModel:
+    if not existing:
+        return new
+    
+    return TransformationResponseModel(
+        task_id=new.task_id,
+        pdf_key=new.pdf_key,
+        results=existing.results + new.results
+    )
+
+async def get_total_workloads(redis: Redis, task_id: str) -> int:
+    """Get the total number of workloads for a task from Redis."""
+    try:
+        workload_count = await redis.get(f"workload-count:{task_id}")
+        return int(workload_count) if workload_count else 1
+    except Exception as e:
+        logger.error(f"Error getting workload count: {e}")
+        return 1
 
 async def clear_transformation_streams() -> None:
     retries = 0
