@@ -84,5 +84,4 @@ def process_website():
         return None
 
 if __name__ == "__main__":
-    result = process_website()
-    print(result)
+    print(process_website())
