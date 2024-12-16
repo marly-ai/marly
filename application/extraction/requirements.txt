@@ -17,3 +17,4 @@ boto3
 beautifulsoup4
 aiohttp
 requests==2.32.3
+markitdown
