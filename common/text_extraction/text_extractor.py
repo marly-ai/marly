@@ -7,7 +7,6 @@ from langchain.schema import SystemMessage, HumanMessage
 from langsmith import Client
 import asyncio
 import time
-import fitz
 from concurrent.futures import ThreadPoolExecutor
 from common.prompts.prompt_enums import PromptType
 
@@ -22,14 +21,54 @@ def get_pdf_page_count(pdf_stream):
     except PyPDF2.errors.PdfReadError as e:
         raise PyPDF2.errors.PdfReadError(f"Error reading PDF file: {str(e)}")
     
-def extract_page_as_markdown(pdf_stream: BytesIO, page_number: int) -> str:
-    page_number -= 1
-    with fitz.open(stream=pdf_stream, filetype="pdf") as doc:
-        page = doc.load_page(page_number)
-        markdown_text = page.get_text("markdown")
-        if not markdown_text.strip():
-            raise ValueError(f"Page {page_number + 1} does not contain any content.")
-    return markdown_text
+def extract_page_as_markdown(file_stream: BytesIO, page_number: int) -> str:
+    import os
+    from PyPDF2 import PdfReader, PdfWriter
+    from markitdown import MarkItDown
+    
+    temp_file = "temp.pdf"
+    
+    try:
+        if not isinstance(page_number, int) or page_number < 0:
+            raise ValueError(f"Invalid page number: {page_number}")
+
+        reader = PdfReader(file_stream)
+        
+        if page_number >= len(reader.pages):
+            raise ValueError(f"Page number {page_number} exceeds document length of {len(reader.pages)} pages")
+
+        writer = PdfWriter()
+        writer.add_page(reader.pages[page_number])
+        
+        try:
+            with open(temp_file, 'wb') as output_file:
+                writer.write(output_file)
+        except IOError as e:
+            raise IOError(f"Failed to write temporary PDF file: {str(e)}")
+
+        try:
+            markitdown = MarkItDown()
+            result = markitdown.convert(temp_file)
+            
+            if not result or not result.text_content:
+                logger.warning(f"No text content extracted from page {page_number}")
+                return ""
+                
+            return result.text_content
+            
+        except Exception as e:
+            raise Exception(f"Error converting PDF to markdown: {str(e)}")
+
+    except Exception as e:
+        logger.error(f"Error in extract_page_markdown: {str(e)}")
+        raise
+
+    finally:
+        try:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+        except Exception as e:
+            logger.error(f"Failed to remove temporary file {temp_file}: {str(e)}")
 
 def process_page(client, prompt, page_number: int, page_text: str, formatted_keywords: str) -> int:
     try:
