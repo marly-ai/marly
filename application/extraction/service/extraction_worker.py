@@ -40,7 +40,7 @@ async def run_extractions() -> None:
                             logger.info(f"Payload value: {payload}")
                             extraction_request = ExtractionRequestModel(**json.loads(payload.decode('utf-8')))
                             extraction_result = await process_extraction(extraction_request)
-                            serialized_result = json.dumps(extraction_result.dict())
+                            serialized_result = json.dumps(extraction_result.model_dump())
                             logger.info(f"Pushing result to transformation-stream: {serialized_result}")
                             await redis.xadd("transformation-stream", {"payload": serialized_result})
                             logger.info("Successfully pushed result to transformation-stream")

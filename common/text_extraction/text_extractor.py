@@ -70,24 +70,31 @@ def extract_page_as_markdown(file_stream: BytesIO, page_number: int) -> str:
         except Exception as e:
             logger.error(f"Failed to remove temporary file {temp_file}: {str(e)}")
 
-def process_page(client, prompt, page_number: int, page_text: str, formatted_keywords: str) -> int:
+def preprocess_messages(raw_payload):
+    messages = []
+    if hasattr(raw_payload, 'to_messages'):
+        for message in raw_payload.to_messages():
+            if isinstance(message, SystemMessage):
+                messages.append({"role": "system", "content": message.content})
+            elif isinstance(message, HumanMessage):
+                messages.append({"role": "user", "content": message.content})
+            else:
+                logger.warning(f"Unexpected message type: {type(message)}")
+    else:
+        logger.warning(f"Unexpected raw_payload format: {type(raw_payload)}")
+    return messages
+
+def process_page(client, prompt, page_number: int, page_text: str, formatted_keywords: str, plan: str) -> int:
     try:
-        raw_payload = prompt.invoke({"first_value": page_text, "second_value": formatted_keywords})
+        raw_payload = prompt.invoke({
+            "first_value": page_text, 
+            "second_value": formatted_keywords,
+            "third_value": plan
+        })
         
-        messages = []
-        if hasattr(raw_payload, 'to_messages'):
-            for message in raw_payload.to_messages():
-                if isinstance(message, SystemMessage):
-                    messages.append({"role": "system", "content": message.content})
-                elif isinstance(message, HumanMessage):
-                    messages.append({"role": "user", "content": message.content})
-                else:
-                    logger.warning(f"Unexpected message type: {type(message)}")
-        else:
-            logger.warning(f"Unexpected raw_payload format for page {page_number}: {type(raw_payload)}")
-        
-        if messages:
-            response = client.do_completion(messages)
+        processed_messages = preprocess_messages(raw_payload)
+        if processed_messages:
+            response = client.do_completion(processed_messages)
             logger.info(f"Response for page {page_number}: {response}")
             if isinstance(response, str) and "yes" in response.lower():
                 logger.info(f"Page {page_number} is relevant according to the model")
@@ -99,20 +106,34 @@ def process_page(client, prompt, page_number: int, page_text: str, formatted_key
     
     return -1
 
+async def get_plan(langsmith_client, client, formatted_keywords: str) -> str:
+    try:
+        prompt = langsmith_client.pull_prompt(PromptType.PLAN.value)
+        messages = prompt.invoke({"first_value": formatted_keywords})
+        processed_messages = preprocess_messages(messages)
+        if processed_messages:
+            return client.do_completion(processed_messages)
+    except Exception as e:
+        logger.error(f"Error getting plan: {e}")
+        return ""
+
 async def find_common_pages(client, file_stream: BytesIO, formatted_keywords: str) -> List[int]:
     try:
         start_time = time.time()
         pdf_reader = PyPDF2.PdfReader(file_stream)
         langsmith_client = Client()
-        prompt = langsmith_client.pull_prompt(PromptType.RELEVANT_PAGE_FINDER.value)
+        prompt = langsmith_client.pull_prompt(PromptType.RELEVANT_PAGE_FINDER_WITH_PLAN.value)
         logger.info(f"MODEL TYPE: {type(client)}")
+
+        plan = await get_plan(langsmith_client, client, formatted_keywords)
+        logger.info(f"PLAN: {plan}")
 
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor(max_workers=10) as executor:
             tasks = []
             for page_number in range(len(pdf_reader.pages)):
                 page_text = extract_page_as_markdown(file_stream, page_number)
-                task = loop.run_in_executor(executor, process_page, client, prompt, page_number, page_text, formatted_keywords)
+                task = loop.run_in_executor(executor, process_page, client, prompt, page_number, page_text, formatted_keywords, plan)
                 tasks.append(task)
 
             results = await asyncio.gather(*tasks)

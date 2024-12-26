@@ -9,3 +9,5 @@ class PromptType(Enum):
     TRANSFORMATION_ONLY = "marly/transformation-only"
     VALIDATION = "marly/validation"
     RELEVANT_PAGE_FINDER = "marly/relevant-page-finder"
+    PLAN = "marly/plan"
+    RELEVANT_PAGE_FINDER_WITH_PLAN = "marly/relevant-page-finder-with-plan"
