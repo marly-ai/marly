@@ -1,35 +1,20 @@
-# Core dependencies
 python-dotenv
 pydantic
 typing
-
-# LangChain ecosystem
 langchain
 langchainhub
 langsmith
 langgraph
-
-# AI Providers
 openai
 groq
 cerebras_cloud_sdk
-
-# PDF Processing
 PyPDF2
 pdfminer.six
 pymupdf
-
-# HTTP and API
 aiohttp
 requests==2.32.3
-
-# Data Storage and Caching
 redis[hiredis]
 boto3
-
-# Utilities
 beautifulsoup4
 markitdown
-
-# Async Support
 asyncio
