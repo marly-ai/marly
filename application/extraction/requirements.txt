@@ -18,3 +18,5 @@ boto3
 beautifulsoup4
 markitdown
 asyncio
+celery
+tiktoken
