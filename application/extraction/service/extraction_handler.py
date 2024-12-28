@@ -131,8 +131,8 @@ async def retrieve_multi_page_metrics(
             logger.error(f"Error in LLM processing: {e}")
 
     combined_results = "\n".join(llm_results)
+    
     return combined_results
-    # return await validate_metrics(combined_results, examples, client)
 
 async def process_page(file_stream: BytesIO, page: int) -> str:
     try:
@@ -147,18 +147,4 @@ async def call_llm_with_file_content(formatted_content: str, keywords: str, exam
         return process_extraction(formatted_content, keywords, examples, client)
     except Exception as e:
         logger.error(f"Error calling LLM with file content: {e}")
-    return ""
-
-async def validate_metrics(llm_results: str, examples: str, client) -> str:
-    try:
-        prompt = langsmith_client.pull_prompt(PromptType.VALIDATION.value)
-        messages = prompt.invoke({
-            "first_value": llm_results,
-            "second_value": examples
-        })
-        processed_messages = preprocess_messages(messages)
-        if processed_messages:
-            return client.do_completion(processed_messages)
-    except Exception as e:
-        logger.error(f"Error validating metrics: {e}")
     return ""
