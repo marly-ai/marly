@@ -23,7 +23,6 @@ from application.extraction.service.processing_handler import (
 )
 from common.agents.prs_agent import process_extraction, AgentMode
 
-# Initialize Celery
 celery_app = Celery('extraction_tasks')
 celery_app.conf.update(
     broker_url='redis://redis:6379/0',
@@ -35,12 +34,11 @@ celery_app.conf.update(
         'process_pdf_chunk': {'queue': 'pdf_processing'},
         'process_batch': {'queue': 'batch_processing'}
     },
-    task_time_limit=3600,  # 1 hour timeout
-    worker_prefetch_multiplier=1,  # One task per worker
-    worker_max_tasks_per_child=100  # Restart worker after 100 tasks
+    task_time_limit=3600, 
+    worker_prefetch_multiplier=1,  
+    worker_max_tasks_per_child=100 
 )
 
-# Worker pool configuration
 MAX_WORKERS = 10
 thread_pool = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 process_pool = ProcessPoolExecutor(max_workers=MAX_WORKERS)
@@ -75,7 +73,6 @@ class ProcessingQueue:
     async def get_progress(self, job_id: str) -> Optional[ProcessingProgress]:
         return self.progress.get(job_id)
 
-# Global queue instance
 processing_queue = ProcessingQueue()
 
 async def get_model_client():
@@ -120,7 +117,7 @@ async def _process_pdf_chunk(file_stream: BytesIO, start_page: int, end_page: in
 async def _process_batch(batch_content: str, keywords: str, examples: str, job_id: str) -> str:
     """Process a batch of content asynchronously."""
     try:
-        client = await get_model_client()  # Get model client for this batch
+        client = await get_model_client()  
         result = await call_llm_with_file_content(batch_content, keywords, examples, client)
         return result if result else ""
     except Exception as e:
@@ -140,20 +137,16 @@ async def run_extraction(pdf_key: str, schemas: List[Dict[str, str]], job_id: st
         file_stream = await get_file_stream(redis, pdf_key)
         file_size = file_stream.getbuffer().nbytes
         
-        # Get model client and examples
         client = await get_model_client()
         examples = await get_examples(client, str(schemas))
         formatted_keywords = "\n".join([f"{k}: {v}" for k, v in schemas[0].items()])
         
-        # Get relevant pages first
         page_numbers = await get_relevant_page_numbers(client, file_stream, formatted_keywords)
         total_relevant_pages = len(page_numbers.pages)
         
-        # Choose processing method based on number of relevant pages
-        DISTRIBUTED_THRESHOLD = 10  # pages
+        DISTRIBUTED_THRESHOLD = 10  
         
         if total_relevant_pages <= DISTRIBUTED_THRESHOLD:
-            # Direct processing for small number of relevant pages
             logger.info(f"Using direct processing for {total_relevant_pages} relevant pages")
             metrics = await retrieve_multi_page_metrics(
                 page_numbers.pages, formatted_keywords, file_stream,
@@ -162,14 +155,11 @@ async def run_extraction(pdf_key: str, schemas: List[Dict[str, str]], job_id: st
             await track_progress(job_id, len(schemas), len(schemas), "completed", "success")
             return [metrics] if metrics else []
         else:
-            # Distributed processing for larger number of relevant pages
             logger.info(f"Using distributed processing for {total_relevant_pages} relevant pages")
             
-            # Calculate optimal chunk size for relevant pages
             chunk_size = max(1, total_relevant_pages // MAX_WORKERS)
             chunks = [page_numbers.pages[i:i + chunk_size] for i in range(0, total_relevant_pages, chunk_size)]
             
-            # Process chunks in parallel
             chunk_tasks = []
             for chunk_pages in chunks:
                 task = process_pdf_chunk.delay(
@@ -180,7 +170,6 @@ async def run_extraction(pdf_key: str, schemas: List[Dict[str, str]], job_id: st
                 )
                 chunk_tasks.append(task)
             
-            # Collect results
             results = []
             for task in chunk_tasks:
                 result = task.get()
@@ -191,7 +180,6 @@ async def run_extraction(pdf_key: str, schemas: List[Dict[str, str]], job_id: st
                 logger.error("No results from distributed processing")
                 return []
             
-            # Combine and validate results
             combined_content = "\n=== BATCH BREAK ===\n".join([content for _, content, _ in sorted(results, key=lambda x: x[0])])
             final_result = await validate_metrics(combined_content, examples, client)
             
@@ -246,7 +234,6 @@ def estimate_tokens(text: str) -> int:
         encoding = tiktoken.get_encoding("cl100k_base")
         return len(encoding.encode(text))
     except Exception:
-        # Fallback to char-based estimation if tiktoken fails
         return len(text) // 4
 
 async def calculate_optimal_batch_size(content_length: int, max_tokens: int = 3000) -> int:
@@ -305,19 +292,16 @@ async def retrieve_multi_page_metrics(
     pages: List[int], keywords: str, file_stream: BytesIO, examples: str, client, job_id: str
 ) -> str:
     try:
-        # Dynamic token limit calculation
         MAX_TOKENS = await calculate_optimal_batch_size(3000)
         logger.info(f"Using dynamic token limit: {MAX_TOKENS}")
         
         extracted_contents = []
         total_pages = len(pages)
         
-        # Extract content with progress tracking
         for idx, page in enumerate(pages):
             await track_progress(job_id, idx, total_pages, f"extracting_page_{page}")
             content = await process_page(file_stream, page)
             if content:
-                # Accurate token estimation
                 token_count = estimate_tokens(content)
                 extracted_contents.append((page, content, token_count))
                 logger.info(f"Page {page}: {token_count} tokens")
@@ -326,49 +310,41 @@ async def retrieve_multi_page_metrics(
             logger.error("No content extracted from pages")
             return ""
 
-        # Process pages in optimized batches
         all_results = []
         current_batch = []
         current_token_count = 0
         
         for page_num, content, token_count in extracted_contents:
             if current_token_count + token_count > MAX_TOKENS:
-                # Process current batch
                 if current_batch:
                     batch_content = "\n=== PAGE BREAK ===\n".join([c for _, c, _ in current_batch])
                     batch_result = await call_llm_with_file_content(batch_content, keywords, examples, client)
                     if batch_result:
                         all_results.append(batch_result)
                     
-                    # Clear memory after batch processing
                     del batch_content
                     gc.collect()
                 
-                # Start new batch
                 current_batch = [(page_num, content, token_count)]
                 current_token_count = token_count
             else:
                 current_batch.append((page_num, content, token_count))
                 current_token_count += token_count
 
-        # Process final batch
         if current_batch:
             batch_content = "\n=== PAGE BREAK ===\n".join([c for _, c, _ in current_batch])
             batch_result = await call_llm_with_file_content(batch_content, keywords, examples, client)
             if batch_result:
                 all_results.append(batch_result)
             
-            # Clear memory
             del batch_content
             gc.collect()
 
-        # Combine and validate results with progress tracking
         combined_results = "\n=== BATCH BREAK ===\n".join(all_results)
         await track_progress(job_id, total_pages, total_pages, "validating_results")
         
         validation_result = await validate_metrics(combined_results, examples, client)
         
-        # Clear memory after processing
         del all_results
         del combined_results
         gc.collect()
@@ -412,11 +388,9 @@ async def validate_metrics(
     client
 ) -> str:
     try:
-        # Split into original batches
         batched_results = llm_results.split("=== BATCH BREAK ===")
         MAX_VALIDATION_TOKENS = await calculate_optimal_batch_size(3000)
         
-        # Process validation in chunks with memory management
         validated_chunks = []
         current_chunk = []
         current_token_count = 0
@@ -425,11 +399,9 @@ async def validate_metrics(
             if not batch.strip():
                 continue
                 
-            # Accurate token estimation
             batch_token_count = estimate_tokens(batch.strip())
             
             if current_token_count + batch_token_count > MAX_VALIDATION_TOKENS:
-                # Validate current chunk
                 if current_chunk:
                     try:
                         chunk_text = "\n".join(current_chunk)
@@ -443,21 +415,18 @@ async def validate_metrics(
                             chunk_validation = client.do_completion(processed_messages)
                             validated_chunks.append(chunk_validation)
                         
-                        # Clear memory
                         del chunk_text
                         del messages
                         gc.collect()
                     except Exception as e:
                         logger.error(f"Error validating chunk: {e}")
                 
-                # Start new chunk
                 current_chunk = [batch.strip()]
                 current_token_count = batch_token_count
             else:
                 current_chunk.append(batch.strip())
                 current_token_count += batch_token_count
         
-        # Process final chunk
         if current_chunk:
             try:
                 chunk_text = "\n".join(current_chunk)
@@ -471,18 +440,15 @@ async def validate_metrics(
                     chunk_validation = client.do_completion(processed_messages)
                     validated_chunks.append(chunk_validation)
                 
-                # Clear memory
                 del chunk_text
                 del messages
                 gc.collect()
             except Exception as e:
                 logger.error(f"Error validating final chunk: {e}")
         
-        # If we have multiple validated chunks, do a final consolidation
         if len(validated_chunks) > 1:
             try:
                 final_consolidation = "\n".join(validated_chunks)
-                # Check if final consolidation needs chunking
                 if estimate_tokens(final_consolidation) > MAX_VALIDATION_TOKENS:
                     logger.warning("Final consolidation exceeds token limit, will process in chunks")
                     return await validate_metrics(final_consolidation, examples, client)
@@ -518,7 +484,6 @@ async def run_web_extraction(url: str, schemas: List[Dict[str, str]], job_id: st
     
     try:
         redis = await get_redis_connection()
-        # Process web content using existing handler
         results = await process_web_content(redis, url, schemas)
         
         await track_progress(job_id, len(schemas), len(schemas), "completed", "success")
