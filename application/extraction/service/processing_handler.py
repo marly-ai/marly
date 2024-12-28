@@ -10,6 +10,7 @@ from common.prompts.prompt_enums import PromptType
 from langchain_core.messages import SystemMessage, HumanMessage
 import json
 from common.agents.prs_agent import process_extraction
+from common.agents.agent_enums import AgentMode
 
 logger = logging.getLogger(__name__)
 langsmith_client = LangSmithClient()
@@ -109,7 +110,16 @@ async def process_web_content(redis: Redis, pdf_key: str, schemas: List[Dict[str
             # Get example format from the schema
             example_format = await get_example_format(model_instance, formatted_keywords)
             # Use PRS agent for extraction
-            result = process_extraction(preprocessed_text, formatted_keywords, example_format, model_instance)
+            text = f"""SOURCE DOCUMENT:
+            {preprocessed_text}
+
+            EXAMPLE FORMAT:
+            {example_format}
+
+            METRICS TO EXTRACT:
+            {formatted_keywords}"""
+
+            result = process_extraction(text, model_instance, AgentMode.EXTRACTION)
             results.append(result)
         except Exception as e:
             logger.error(f"Error processing schema: {e}")

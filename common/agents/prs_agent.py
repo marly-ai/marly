@@ -293,18 +293,9 @@ def create_graph(client, mode: AgentMode = AgentMode.EXTRACTION):
     
     return workflow.compile()
 
-def process_extraction(formatted_content: str, keywords: str, examples: str, client, mode: AgentMode = AgentMode.EXTRACTION) -> str:
+def process_extraction(text: str, client, mode: AgentMode) -> str:
     """Process text through the agent workflow with extraction handler format."""
     logger = logging.getLogger(__name__)
-    
-    text = f"""SOURCE DOCUMENT:
-            {formatted_content}
-
-            EXAMPLE FORMAT:
-            {examples}
-
-            METRICS TO EXTRACT:
-            {keywords}"""
 
     graph = create_graph(client, mode)
     

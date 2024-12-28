@@ -105,11 +105,11 @@ def process_page(client, prompt, page_number: int, page_text: str, formatted_key
                 'page_text': page_text,
                 'keywords': formatted_keywords,
                 'timestamp': datetime.now().isoformat(),
-                'is_relevant': "yes" in response[:100].lower()
+                'is_relevant': "yes" in response[:20].lower()
             }
             
             # Return response_data for all pages, but only mark relevant pages with their page number
-            return (page_number if "yes" in response[:100].lower() else -1), response_data
+            return (page_number if "yes" in response[:20].lower() else -1), response_data
             
     except Exception as e:
         logger.error(f"Error processing page {page_number}: {e}")

@@ -16,6 +16,7 @@ from application.extraction.service.processing_handler import (
     preprocess_messages
 )
 from common.agents.prs_agent import process_extraction
+from common.agents.agent_enums import AgentMode
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -144,7 +145,15 @@ async def process_page(file_stream: BytesIO, page: int) -> str:
 
 async def call_llm_with_file_content(formatted_content: str, keywords: str, examples: str, client) -> str:
     try:
-        return process_extraction(formatted_content, keywords, examples, client)
+        text = f"""SOURCE DOCUMENT:
+            {formatted_content}
+
+            EXAMPLE FORMAT:
+            {examples}
+
+            METRICS TO EXTRACT:
+            {keywords}"""
+        return process_extraction(text, client, AgentMode.EXTRACTION)
     except Exception as e:
         logger.error(f"Error calling LLM with file content: {e}")
     return ""
