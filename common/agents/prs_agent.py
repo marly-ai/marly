@@ -170,8 +170,8 @@ def create_router(mode: AgentMode):
         iterations = state["iterations"]
         confidence = state["confidence_score"]
         
-        min_iterations = 3 if mode == AgentMode.EXTRACTION else 2
-        max_iterations = 4 if mode == AgentMode.EXTRACTION else 3
+        min_iterations = 2
+        max_iterations = 3
         min_confidence = 0.8
         
         # After minimum iterations, check if we should synthesize final answer
