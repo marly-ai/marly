@@ -133,7 +133,7 @@ async def retrieve_multi_page_metrics(
 
     combined_results = "\n".join(llm_results)
     
-    return validate_metrics(combined_results, examples, client)
+    return await validate_metrics(combined_results, examples, client)
 
 async def process_page(file_stream: BytesIO, page: int) -> str:
     try:
