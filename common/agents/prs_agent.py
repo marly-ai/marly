@@ -221,7 +221,7 @@ def synthesize_node(state, agent, name, prompts):
         "iterations": state["iterations"]
     }
 
-def create_graph(client, mode: AgentMode = AgentMode.EXTRACTION):
+def create_graph(client, mode: AgentMode):
     """Create the workflow graph with the specified mode."""
     prompts = get_prompts(mode)
     
