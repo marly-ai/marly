@@ -98,7 +98,7 @@ def reflection_node(state, agent, name, prompts):
         {"role": "user", "content": f"Response to reflect on:\n{last_message}"}
     ]
     
-    reflection = agent.do_completion(reflection_messages)
+    reflection = agent.do_completion(reflection_messages, temperature=0.3)
     
     new_issues, new_improvements = analyze_reflection(reflection)
     
@@ -147,7 +147,7 @@ def confidence_node(state, agent, name, prompts):
         {"role": "user", "content": f"Analysis to score:\n{last_message}"}
     ]
     
-    score = agent.do_completion(confidence_messages)
+    score = agent.do_completion(confidence_messages, temperature=0.0)
     
     try:
         confidence = float(score.strip())
@@ -209,7 +209,7 @@ def synthesize_node(state, agent, name, prompts):
         Create the best possible final answer by combining the most accurate elements from all attempts."""}
     ]
     
-    final_result = agent.do_completion(synthesis_messages)
+    final_result = agent.do_completion(synthesis_messages, temperature=0.2)
     
     return {
         "messages": [AIMessage(content=final_result)],

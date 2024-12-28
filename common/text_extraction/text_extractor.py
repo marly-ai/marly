@@ -87,12 +87,11 @@ def preprocess_messages(raw_payload):
         logger.warning(f"Unexpected raw_payload format: {type(raw_payload)}")
     return messages
 
-def process_page(client, prompt, page_number: int, page_text: str, formatted_keywords: str, plan: str) -> tuple[int, dict]:
+def process_page(client, prompt, page_number: int, page_text: str, formatted_keywords: str) -> tuple[int, dict]:
     try:
         raw_payload = prompt.invoke({
             "first_value": page_text, 
-            "second_value": formatted_keywords,
-            "third_value": plan
+            "second_value": formatted_keywords
         })
         
         processed_messages = preprocess_messages(raw_payload)
@@ -108,7 +107,6 @@ def process_page(client, prompt, page_number: int, page_text: str, formatted_key
                 'is_relevant': "yes" in response[:20].lower()
             }
             
-            # Return response_data for all pages, but only mark relevant pages with their page number
             return (page_number if "yes" in response[:20].lower() else -1), response_data
             
     except Exception as e:
@@ -122,29 +120,15 @@ def process_page(client, prompt, page_number: int, page_text: str, formatted_key
             'error': True
         }
 
-async def get_plan(langsmith_client, client, formatted_keywords: str) -> str:
-    try:
-        prompt = langsmith_client.pull_prompt(PromptType.PLAN.value)
-        messages = prompt.invoke({"first_value": formatted_keywords})
-        processed_messages = preprocess_messages(messages)
-        if processed_messages:
-            return client.do_completion(processed_messages)
-    except Exception as e:
-        logger.error(f"Error getting plan: {e}")
-        return ""
-
 async def find_common_pages(client, file_stream: BytesIO, formatted_keywords: str) -> List[int]:
     try:
         start_time = time.time()
         pdf_reader = PyPDF2.PdfReader(file_stream)
         langsmith_client = Client()
-        prompt = langsmith_client.pull_prompt(PromptType.RELEVANT_PAGE_FINDER_WITH_PLAN.value)
+        prompt = langsmith_client.pull_prompt(PromptType.RELEVANT_PAGE_FINDER_V2.value)
         logger.info(f"MODEL TYPE: {type(client)}")
 
         run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
-        
-        plan = await get_plan(langsmith_client, client, formatted_keywords)
-        logger.info(f"PLAN: {plan}")
 
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -158,8 +142,7 @@ async def find_common_pages(client, file_stream: BytesIO, formatted_keywords: st
                     prompt, 
                     page_number, 
                     page_text, 
-                    formatted_keywords, 
-                    plan
+                    formatted_keywords
                 )
                 tasks.append(task)
 
@@ -172,17 +155,13 @@ async def find_common_pages(client, file_stream: BytesIO, formatted_keywords: st
         logger.info(f"Processing {len(results)} results")
         
         for page_number, response_data in results:
-            # Store response data for EVERY page, using the loop index as page number
-            # since response_data will always exist (even for errors)
             page_responses[str(page_number if page_number != -1 else results.index((page_number, response_data)))] = response_data
             
-            # Only add to relevant_pages if it was marked as relevant
             if page_number != -1:
                 relevant_pages.append(page_number)
 
         logger.info(f"Collected responses for {len(page_responses)} pages")
 
-        # Store all responses for this run in Redis
         if page_responses:
             try:
                 redis_client = await get_redis_connection()
