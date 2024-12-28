@@ -15,6 +15,7 @@ from application.extraction.service.processing_handler import (
     get_latest_model_details,
     preprocess_messages
 )
+from common.agents.prs_agent import process_extraction
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -130,7 +131,8 @@ async def retrieve_multi_page_metrics(
             logger.error(f"Error in LLM processing: {e}")
 
     combined_results = "\n".join(llm_results)
-    return await validate_metrics(combined_results, examples, client)
+    return combined_results
+    # return await validate_metrics(combined_results, examples, client)
 
 async def process_page(file_stream: BytesIO, page: int) -> str:
     try:
@@ -142,15 +144,7 @@ async def process_page(file_stream: BytesIO, page: int) -> str:
 
 async def call_llm_with_file_content(formatted_content: str, keywords: str, examples: str, client) -> str:
     try:
-        prompt = langsmith_client.pull_prompt(PromptType.EXTRACTION.value)
-        messages = prompt.invoke({
-            "first_value": formatted_content,
-            "second_value": keywords,
-            "third_value": examples
-        })
-        processed_messages = preprocess_messages(messages)
-        if processed_messages:
-            return client.do_completion(processed_messages)
+        return process_extraction(formatted_content, keywords, examples, client)
     except Exception as e:
         logger.error(f"Error calling LLM with file content: {e}")
     return ""

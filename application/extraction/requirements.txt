@@ -1,20 +1,35 @@
-asyncio
-typing
-redis[hiredis]
+# Core dependencies
 python-dotenv
 pydantic
-PyPDF2
-aiohttp
-openai
-groq
+typing
+
+# LangChain ecosystem
 langchain
 langchainhub
 langsmith
+langgraph
+
+# AI Providers
+openai
+groq
+cerebras_cloud_sdk
+
+# PDF Processing
+PyPDF2
 pdfminer.six
 pymupdf
-cerebras_cloud_sdk
-boto3
-beautifulsoup4
+
+# HTTP and API
 aiohttp
 requests==2.32.3
+
+# Data Storage and Caching
+redis[hiredis]
+boto3
+
+# Utilities
+beautifulsoup4
 markitdown
+
+# Async Support
+asyncio

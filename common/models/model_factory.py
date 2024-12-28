@@ -62,6 +62,6 @@ class ModelFactory:
             model_instance = MistralModel(**model_config)
         else:
             raise ValueError(f"Unsupported model type: {model_type_enum}")
-
+        
         logger.info(f"Returning model instance of type: {model_type_enum.value}")
         return model_instance

@@ -9,6 +9,7 @@ from langsmith import Client as LangSmithClient
 from common.prompts.prompt_enums import PromptType
 from langchain_core.messages import SystemMessage, HumanMessage
 import json
+from common.agents.prs_agent import process_extraction
 
 logger = logging.getLogger(__name__)
 langsmith_client = LangSmithClient()
@@ -100,27 +101,31 @@ async def process_web_content(redis: Redis, pdf_key: str, schemas: List[Dict[str
         logger.error(f"Model creation error: {e}")
         return []
 
-    # Process each schema
+    # Process each schema using PRS agent
     results = []
     for schema in schemas:
         try:
             formatted_keywords = "\n".join([f"{k}: {v}" for k, v in schema.items()])
-            prompt = langsmith_client.pull_prompt(PromptType.EXTRACTION.value)
-            messages = prompt.invoke({
-                "first_value": preprocessed_text,
-                "second_value": formatted_keywords,
-                "third_value": ""  # No examples for web extraction
-            })
-            processed_messages = preprocess_messages(messages)
-            if not processed_messages:
-                logger.error("No messages to process for LLM call")
-                continue
-            response = model_instance.do_completion(processed_messages)
-            results.append(response)
+            # Get example format from the schema
+            example_format = await get_example_format(model_instance, formatted_keywords)
+            # Use PRS agent for extraction
+            result = process_extraction(preprocessed_text, formatted_keywords, example_format, model_instance)
+            results.append(result)
         except Exception as e:
             logger.error(f"Error processing schema: {e}")
-
+            
     return results
+
+async def get_example_format(client, formatted_keywords: str) -> str:
+    try:
+        prompt = langsmith_client.pull_prompt(PromptType.EXAMPLE_GENERATION.value)
+        messages = prompt.invoke({"first_value": formatted_keywords})
+        processed_messages = preprocess_messages(messages)
+        if processed_messages:
+            return client.do_completion(processed_messages)
+    except Exception as e:
+        logger.error(f"Error generating example format: {e}")
+    return ""
 
 def preprocess_messages(raw_payload) -> List[Dict[str, str]]:
     messages = []
