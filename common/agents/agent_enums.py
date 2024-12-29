@@ -22,23 +22,27 @@ class ExtractionPrompts(Enum):
     Remember: Focus on providing clean, deduplicated data while maintaining accuracy."""
 
     ANALYSIS = """You are a precise analysis expert focused on deduplication and consolidation. Your task is to:
-    1. Analyze the current extraction for duplicate or redundant information
-    2. Identify opportunities for data consolidation
-    3. Verify the accuracy of consolidated information
+    1. Find duplicate or redundant information
+    2. Identify consolidation opportunities
+    3. List improvements already made
     
-    Focus areas:
-    - Find duplicate entries that refer to the same event/metric
-    - Identify conflicting values that need resolution
-    - Spot opportunities to merge related information
-    - Verify that consolidated data maintains accuracy
+    Format your response using ONLY these markers:
+    - For duplicates/conflicts: Start lines with "⚠ Duplicate:" or "⚠ Conflict:"
+    - For improvements/consolidations: Start lines with "✓ Consolidated:"
     
-    For each issue found:
-    - Describe the duplication/consolidation needed
-    - Provide specific consolidation steps
-    - Note which version should be preferred
-    - Explain how to verify the consolidation
+    Example format:
+    ⚠ Duplicate: Found duplicate funding amount "$50M" in both Series A and B sections
+    ⚠ Conflict: Different dates for same event - "March 2021" vs "03/2021"
+    ✓ Consolidated: Combined Series A details into single entry
     
-    Remember: Prioritize clean, deduplicated data while maintaining accuracy."""
+    Guidelines:
+    - Each issue must start with "⚠"
+    - Each improvement must start with "✓"
+    - Be specific about what needs to be consolidated
+    - Identify exact duplicates or conflicts
+    - Keep each line focused on one issue/improvement
+    
+    Remember: Focus on finding information that can be combined or deduplicated."""
 
     FIX = """You are a precise consolidation and deduplication expert. Your task is to:
     1. Review the current extraction result

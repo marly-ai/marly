@@ -5,19 +5,41 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, END
 import functools
 import logging
-from .agent_enums import AgentMode, ExtractionPrompts, PageFinderPrompts
+import redis
 import json
+import uuid
+from .agent_enums import AgentMode, ExtractionPrompts, PageFinderPrompts
 
 load_dotenv()
+
+# Redis connection
+redis_client = redis.Redis(host='redis', port=6379, db=0)
+REDIS_EXPIRE = 60 * 60  # 1 hour expiry
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     sender: str
     confidence_score: float
-    reflections: list[str]
+    session_id: str  # Added to track Redis keys
     iterations: int
-    improvements: list[str]
-    pending_fixes: list[str] 
+
+def get_redis_key(session_id: str, key_type: str) -> str:
+    """Generate Redis key for different state types."""
+    return f"prs:{session_id}:{key_type}"
+
+def store_list(session_id: str, key_type: str, items: list) -> None:
+    """Store a list in Redis with expiry."""
+    key = get_redis_key(session_id, key_type)
+    if items:
+        redis_client.delete(key)
+        redis_client.rpush(key, *[json.dumps(item) for item in items])
+        redis_client.expire(key, REDIS_EXPIRE)
+
+def get_list(session_id: str, key_type: str, start: int = 0, end: int = -1) -> list:
+    """Get a list from Redis with optional range."""
+    key = get_redis_key(session_id, key_type)
+    items = redis_client.lrange(key, start, end)
+    return [json.loads(item) for item in items] if items else []
 
 def get_prompts(mode: AgentMode):
     """Get the appropriate prompts for the specified mode."""
@@ -47,13 +69,16 @@ def create_agent(client, system_message: str):
 
 def agent_node(state, agent, name):
     """Process the agent's response and update the state."""
-    reflections = "\n".join(state.get("reflections", []))
-    improvements = state.get("improvements", [])
-    pending_fixes = state.get("pending_fixes", [])
+    session_id = state["session_id"]
+    
+    # Get state from Redis
+    reflections = get_list(session_id, "reflections")
+    improvements = get_list(session_id, "improvements")
+    pending_fixes = get_list(session_id, "pending_fixes")
     
     result = agent({
         "messages": state["messages"],
-        "reflections": reflections,
+        "reflections": "\n".join(reflections),
         "improvements": improvements,
         "pending_fixes": pending_fixes
     })
@@ -62,126 +87,83 @@ def agent_node(state, agent, name):
         "messages": [AIMessage(content=result)],
         "sender": name,
         "confidence_score": state["confidence_score"],
-        "reflections": state["reflections"],
-        "improvements": improvements,
-        "pending_fixes": pending_fixes,
+        "session_id": session_id,
         "iterations": state["iterations"] + 1
     }
 
 def analyze_node(state, agent, name, prompts):
-    """Combined reflection and analysis node that evaluates output and generates specific solutions."""
+    """Analyze output and identify consolidation opportunities."""
     messages = state["messages"]
     last_message = messages[-1].content
+    session_id = state["session_id"]
     
-    # Analysis focused on deduplication and consolidation
+    # Get previous improvements from Redis
+    prev_improvements = get_list(session_id, "improvements")
+    
     analysis_messages = [
         {"role": "system", "content": prompts.ANALYSIS.value},
         {"role": "user", "content": f"""Current extraction to analyze:
         {last_message}
         
         Previous improvements made:
-        {chr(10).join(state.get('improvements', []))}
+        {chr(10).join(prev_improvements)}
         
         Analyze this extraction focusing on duplicate entries and consolidation opportunities."""}
     ]
     
-    # Use low temperature for precise analysis
     analysis = agent.do_completion(analysis_messages, temperature=0.2)
     
-    # Structure the analysis with focus on consolidation
-    structure_messages = [
-        {"role": "system", "content": """Structure the analysis into a detailed JSON format:
-        {
-            "metrics": {
-                "duplicate_count": <number>,
-                "consolidation_opportunities": <number>
-            },
-            "duplicates": [
-                {
-                    "type": "duplicate|conflicting|redundant",
-                    "location": "<field_name>",
-                    "entries": ["<value1>", "<value2>"],
-                    "preferred_value": "<value>",
-                    "reason": "<why_this_value>"
-                }
-            ],
-            "consolidation_steps": [
-                {
-                    "field": "<field_name>",
-                    "action": "merge|select|combine",
-                    "values": ["<value1>", "<value2>"],
-                    "result": "<consolidated_value>",
-                    "verification": "<how_to_verify>"
-                }
-            ]
-        }"""},
-        {"role": "user", "content": f"Analysis to structure:\n{analysis}"}
-    ]
+    # Extract issues and improvements using exact markers
+    issues = []
+    improvements = []
     
-    structured_result = agent.do_completion(structure_messages, temperature=0.0)
+    for line in analysis.split('\n'):
+        line = line.strip()
+        if line.startswith('⚠'):
+            issues.append(line)
+        elif line.startswith('✓'):
+            improvements.append(line)
     
-    try:
-        import json
-        analysis_details = json.loads(structured_result)
-        
-        # Generate human-readable issues focused on consolidation
-        issues = [
-            f"⚠ Duplicate in {dup['location']}: {', '.join(dup['entries'])}\n"
-            f"Preferred: {dup['preferred_value']}\n"
-            f"Reason: {dup['reason']}"
-            for dup in analysis_details.get('duplicates', [])
-        ]
-        
-        improvements = [
-            f"✓ Consolidated {step['field']}: {step['result']}"
-            for step in analysis_details.get('consolidation_steps', [])
-            if step['action'] == 'merge'
-        ]
-    except Exception as e:
-        issues = [f"⚠ Analysis structuring failed: {str(e)}"]
-        improvements = []
-        analysis_details = {"metrics": {"duplicate_count": 0, "consolidation_opportunities": 0}}
+    # Get current state from Redis
+    current_improvements = get_list(session_id, "improvements")
+    current_pending_fixes = get_list(session_id, "pending_fixes")
     
-    # Update state with consolidation information
-    current_improvements = state.get("improvements", [])
-    current_pending_fixes = state.get("pending_fixes", [])
-    
+    # Add new improvements if not already present
     for improvement in improvements:
         if improvement not in current_improvements:
             current_improvements.append(improvement)
     
+    # Remove fixed issues and add new ones
     current_pending_fixes = [fix for fix in current_pending_fixes if not any(
-        improvement.lower().replace("✓", "").strip() in fix.lower() 
+        improvement.replace('✓', '').strip() in fix.replace('⚠', '').strip()
         for improvement in improvements
     )]
     for issue in issues:
         if issue not in current_pending_fixes:
             current_pending_fixes.append(issue)
     
-    # Store analysis details with focus on consolidation
-    current_reflections = state.get("reflections", [])
-    current_reflections.append(f"""Consolidation Analysis {len(current_reflections) + 1}:
-    {analysis}
+    # Store updated lists in Redis
+    store_list(session_id, "improvements", current_improvements)
+    store_list(session_id, "pending_fixes", current_pending_fixes)
     
-    Duplicates Found:
-    - Count: {analysis_details['metrics']['duplicate_count']}
-    - Consolidation Opportunities: {analysis_details['metrics']['consolidation_opportunities']}
+    # Store analysis reflection in Redis
+    reflection = f"""Analysis {len(get_list(session_id, 'reflections')) + 1}:
     
-    Issues Identified:
-    {chr(10).join(issues) if issues else '(No duplicates found)'}
+    Issues Found:
+    {chr(10).join(issues) if issues else '(No issues found)'}
     
-    Consolidations Completed:
-    {chr(10).join(improvements) if improvements else '(No consolidations performed)'}""")
+    Improvements Made:
+    {chr(10).join(improvements) if improvements else '(No improvements made)'}"""
+    
+    redis_client.rpush(get_redis_key(session_id, "reflections"), json.dumps(reflection))
+    redis_client.expire(get_redis_key(session_id, "reflections"), REDIS_EXPIRE)
     
     return {
         "messages": state["messages"],
         "sender": name,
         "confidence_score": state["confidence_score"],
-        "reflections": current_reflections,
-        "improvements": current_improvements,
-        "pending_fixes": current_pending_fixes,
-        "iterations": state["iterations"],
-        "analysis_details": analysis_details
+        "session_id": session_id,
+        "iterations": state["iterations"]
     }
 
 def confidence_node(state, agent, name, prompts):
@@ -205,88 +187,48 @@ def confidence_node(state, agent, name, prompts):
         "messages": state["messages"],
         "sender": name,
         "confidence_score": confidence,
-        "reflections": state["reflections"],
+        "session_id": state["session_id"],
         "iterations": state["iterations"]
     }
 
 def fix_node(state, agent, name, prompts):
-    """Fix identified issues with focus on deduplication and consolidation."""
+    """Fix identified issues focusing on deduplication."""
     messages = state["messages"]
     last_message = messages[-1].content
-    pending_fixes = state.get("pending_fixes", [])
-    reflections = state.get("reflections", [])
-    analysis_details = state.get("analysis_details", {})
+    session_id = state["session_id"]
+    
+    # Get state from Redis
+    pending_fixes = get_list(session_id, "pending_fixes")
+    reflections = get_list(session_id, "reflections", -1)  # Get only last reflection
     
     if not pending_fixes:
         return state
-    
-    # Create consolidation instructions
-    consolidation_steps = []
-    if analysis_details and 'consolidation_steps' in analysis_details:
-        for step in analysis_details['consolidation_steps']:
-            consolidation_steps.append(
-                f"Consolidate {step['field']}:\n"
-                f"Values: {', '.join(step['values'])}\n"
-                f"Into: {step['result']}\n"
-                f"Verify by: {step['verification']}"
-            )
     
     fix_messages = [
         {"role": "system", "content": prompts.FIX.value},
         {"role": "user", "content": f"""Current extraction:
         {last_message}
         
-        Consolidation Steps:
-        {chr(10).join(consolidation_steps) if consolidation_steps else chr(10).join(pending_fixes)}
+        Issues to fix:
+        {chr(10).join(pending_fixes)}
         
         Previous context:
         {chr(10).join(reflections)}
         
-        Apply consolidation steps and verify each change."""}
+        Fix these issues, focusing on consolidation and deduplication."""}
     ]
     
-    # Use low temperature for precise fixes
     fixed_result = agent.do_completion(fix_messages, temperature=0.2)
     
-    # Verify consolidation results
-    verify_messages = [
-        {"role": "system", "content": prompts.VERIFICATION.value},
-        {"role": "user", "content": f"""Original content:
-        {last_message}
-        
-        Fixed content:
-        {fixed_result}
-        
-        Verify all consolidations were applied correctly."""}
-    ]
-    
-    verification_result = agent.do_completion(verify_messages, temperature=0.0)
-    
-    try:
-        verification = json.loads(verification_result)
-        consolidation_success = sum(1 for check in verification['consolidation_checks'] if check['success'])
-        total_checks = len(verification['consolidation_checks'])
-        success_rate = consolidation_success / total_checks if total_checks > 0 else 0.0
-    except:
-        verification = {
-            "consolidation_checks": [],
-            "remaining_duplicates": [{"type": "verification_failed", "reason": "Could not parse verification"}],
-            "verification_score": 0.0
-        }
-        success_rate = 0.0
+    # Clear pending fixes in Redis
+    redis_client.delete(get_redis_key(session_id, "pending_fixes"))
     
     return {
         "messages": [AIMessage(content=fixed_result)],
         "sender": name,
-        "confidence_score": max(state["confidence_score"], success_rate),
-        "reflections": reflections,
-        "improvements": state.get("improvements", []),
-        "pending_fixes": [f"⚠ Remaining duplicate: {dup['description']}" for dup in verification.get('remaining_duplicates', [])],
-        "iterations": state["iterations"],
-        "analysis_details": {
-            **analysis_details,
-            "consolidation_verification": verification
-        }
+        "confidence_score": state["confidence_score"],
+        "session_id": session_id,
+        "iterations": state["iterations"]
     }
 
 def create_router(mode: AgentMode):
@@ -294,7 +236,10 @@ def create_router(mode: AgentMode):
     def router(state) -> Literal["process", "analyze", "fix", "score", "synthesize", "__end__"]:
         iterations = state["iterations"]
         confidence = state["confidence_score"]
-        pending_fixes = state.get("pending_fixes", [])
+        session_id = state["session_id"]
+        
+        # Get pending fixes from Redis
+        pending_fixes = get_list(session_id, "pending_fixes")
         
         max_iterations = 2
         min_confidence = 0.8
@@ -326,8 +271,9 @@ def create_router(mode: AgentMode):
 
 def synthesize_node(state, agent, name, prompts):
     """Create final answer by synthesizing all iterations and improvements."""
+    session_id = state["session_id"]
     all_responses = [msg.content for msg in state["messages"] if isinstance(msg, AIMessage)]
-    improvements = state.get("improvements", [])
+    improvements = get_list(session_id, "improvements")
     
     synthesis_messages = [
         {"role": "system", "content": prompts.SYNTHESIS.value},
@@ -346,9 +292,7 @@ def synthesize_node(state, agent, name, prompts):
         "messages": [AIMessage(content=final_result)],
         "sender": "synthesizer",
         "confidence_score": state["confidence_score"],
-        "reflections": state["reflections"],
-        "improvements": state["improvements"],
-        "pending_fixes": state["pending_fixes"],
+        "session_id": session_id,
         "iterations": state["iterations"]
     }
 
@@ -396,43 +340,60 @@ def create_graph(client, mode: AgentMode):
 def process_extraction(text: str, client, mode: AgentMode) -> str:
     """Process text through the agent workflow with extraction handler format."""
     logger = logging.getLogger(__name__)
-
+    
+    # Create unique session ID
+    session_id = str(uuid.uuid4())
+    
     graph = create_graph(client, mode)
     
-    result = graph.invoke({
-        "messages": [HumanMessage(content=text)],
-        "sender": "user",
-        "confidence_score": 0.0,
-        "reflections": [],
-        "improvements": [],
-        "pending_fixes": [],
-        "iterations": 0
-    })
-    
-    logger.info("\n" + "="*50)
-    logger.info(f"AGENT MODE: {mode.value}")
-    logger.info("="*50)
-    logger.info("\nFinal Result:")
-    logger.info(result["messages"][-1].content)
-    logger.info("\nConfidence Score: %.2f", result["confidence_score"])
-    
-    logger.info("\nImprovements Made:")
-    for improvement in result.get("improvements", []):
-        logger.info(improvement)
-    
-    logger.info("\nRemaining Issues:")
-    pending = result.get("pending_fixes", [])
-    if pending:
-        for issue in pending:
-            logger.info(issue)
-    else:
-        logger.info("(No remaining issues)")
-    
-    logger.info("\nDetailed Process Notes:")
-    for reflection in result["reflections"]:
-        logger.info(f"\n{reflection}")
-    
-    logger.info(f"\nTotal Iterations: {result['iterations']}")
-    logger.info("="*50 + "\n")
-    
-    return result["messages"][-1].content
+    try:
+        result = graph.invoke({
+            "messages": [HumanMessage(content=text)],
+            "sender": "user",
+            "confidence_score": 0.0,
+            "session_id": session_id,
+            "iterations": 0
+        })
+        
+        # Get final state from Redis for logging
+        improvements = get_list(session_id, "improvements")
+        pending_fixes = get_list(session_id, "pending_fixes")
+        reflections = get_list(session_id, "reflections")
+        
+        logger.info("\n" + "="*50)
+        logger.info(f"AGENT MODE: {mode.value}")
+        logger.info("="*50)
+        logger.info("\nFinal Result:")
+        logger.info(result["messages"][-1].content)
+        logger.info("\nConfidence Score: %.2f", result["confidence_score"])
+        
+        logger.info("\nImprovements Made:")
+        for improvement in improvements:
+            logger.info(improvement)
+        
+        logger.info("\nRemaining Issues:")
+        if pending_fixes:
+            for issue in pending_fixes:
+                logger.info(issue)
+        else:
+            logger.info("(No remaining issues)")
+        
+        logger.info("\nDetailed Process Notes:")
+        for reflection in reflections:
+            logger.info(f"\n{reflection}")
+        
+        logger.info(f"\nTotal Iterations: {result['iterations']}")
+        logger.info("="*50 + "\n")
+        
+        # Cleanup Redis keys
+        for key_type in ["improvements", "pending_fixes", "reflections"]:
+            redis_client.delete(get_redis_key(session_id, key_type))
+        
+        return result["messages"][-1].content
+        
+    except Exception as e:
+        logger.error(f"Extraction failed: {str(e)}")
+        # Cleanup Redis keys on error
+        for key_type in ["improvements", "pending_fixes", "reflections"]:
+            redis_client.delete(get_redis_key(session_id, key_type))
+        return "Extraction failed. Please try again."
