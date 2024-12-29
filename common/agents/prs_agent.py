@@ -115,7 +115,11 @@ def agent_node(state, agent, name):
 
 def analyze_node(state, agent, name, prompts):
     """Analyze output and identify consolidation opportunities."""
+    logger = logging.getLogger(__name__)
     session_id = state["session_id"]
+    
+    logger.info(f"\nStarting analysis iteration {state['iterations'] + 1}")
+    
     last_message = get_last_message(session_id)
     
     # Get full context for better analysis
@@ -194,6 +198,9 @@ def analyze_node(state, agent, name, prompts):
     
     redis_client.rpush(get_redis_key(session_id, "reflections"), json.dumps(reflection))
     
+    # Add logging before return
+    logger.info(f"Analysis complete: {len(new_fixes)} new issues, {len(new_improvements)} improvements")
+    
     return {
         "messages": state["messages"],
         "sender": name,
@@ -230,12 +237,15 @@ def confidence_node(state, agent, name, prompts):
 
 def fix_node(state, agent, name, prompts):
     """Fix identified issues focusing on deduplication."""
+    logger = logging.getLogger(__name__)
     session_id = state["session_id"]
     last_message = get_last_message(session_id)
-    pending_fixes = get_list(session_id, "pending_fixes")
     
-    if not pending_fixes:
-        return state
+    pending_fixes = get_list(session_id, "pending_fixes")
+    if pending_fixes:
+        logger.info(f"\nAttempting to fix {len(pending_fixes)} issues:")
+        for fix in pending_fixes:
+            logger.info(f"⚠ {fix}")
     
     # Initial fix attempt
     fix_messages = [
@@ -279,6 +289,10 @@ def fix_node(state, agent, name, prompts):
     
     # Clear pending fixes only after verification
     redis_client.delete(get_redis_key(session_id, "pending_fixes"))
+    
+    # Add logging before return
+    logger.info("Fix attempt complete")
+    logger.info(f"Verification result length: {len(verification.split())}")
     
     return {
         "messages": state["messages"] + [AIMessage(content=fixed_result)],
@@ -405,25 +419,78 @@ def process_extraction(text: str, client, mode: AgentMode) -> str:
         
         # Execute graph with initial message
         result = graph.invoke({
-            "messages": [HumanMessage(content=text)],  # Start with HumanMessage
+            "messages": [HumanMessage(content=text)],
             "sender": "user",
             "confidence_score": 0.0,
             "session_id": session_id,
             "iterations": 0
         })
         
-        # Get final result
+        # Detailed logging of the entire process
+        logger.info("\n" + "="*50)
+        logger.info(f"AGENT MODE: {mode.value}")
+        logger.info("="*50)
+        
+        # Log all reflections with iteration markers
+        reflections = get_list(session_id, "reflections")
+        logger.info("\nPROCESS REFLECTIONS:")
+        for i, reflection in enumerate(reflections, 1):
+            logger.info(f"\nITERATION {i}:")
+            logger.info(reflection)
+        
+        # Log improvements made
+        improvements = get_list(session_id, "improvements")
+        logger.info("\nIMPROVEMENTS MADE:")
+        if improvements:
+            for imp in improvements:
+                logger.info(f"✓ {imp}")
+        else:
+            logger.info("(No improvements needed)")
+        
+        # Log fix verifications
+        fix_verifications = get_list(session_id, "fix_verifications")
+        logger.info("\nFIX VERIFICATIONS:")
+        for i, verification in enumerate(fix_verifications, 1):
+            logger.info(f"\nFix Attempt {i}:")
+            logger.info(f"Issues Addressed: {len(verification.get('fixes', []))}")
+            logger.info(f"Verification Result: {verification.get('verification', '')}")
+        
+        # Log final state
+        pending_fixes = get_list(session_id, "pending_fixes")
+        logger.info("\nFINAL STATE:")
+        logger.info(f"Total Iterations: {result['iterations']}")
+        logger.info(f"Final Confidence Score: {result['confidence_score']:.2f}")
+        logger.info("\nRemaining Issues:")
+        if pending_fixes:
+            for issue in pending_fixes:
+                logger.info(f"⚠ {issue}")
+        else:
+            logger.info("(No remaining issues)")
+        
+        # Log final result
+        logger.info("\nFINAL RESULT:")
         final_message = result["messages"][-1].content if result["messages"] else ""
+        logger.info(final_message)
+        logger.info("="*50 + "\n")
         
         # Cleanup all Redis keys
-        for key_type in ["messages", "improvements", "pending_fixes", "reflections"]:
+        for key_type in ["messages", "improvements", "pending_fixes", "reflections", "fix_verifications"]:
             redis_client.delete(get_redis_key(session_id, key_type))
         
         return final_message
         
     except Exception as e:
         logger.error(f"Extraction failed: {str(e)}")
+        # Log error state if possible
+        try:
+            reflections = get_list(session_id, "reflections")
+            if reflections:
+                logger.error("\nLast known state before error:")
+                logger.error(reflections[-1])
+        except:
+            pass
+        
         # Cleanup Redis keys
-        for key_type in ["messages", "improvements", "pending_fixes", "reflections"]:
+        for key_type in ["messages", "improvements", "pending_fixes", "reflections", "fix_verifications"]:
             redis_client.delete(get_redis_key(session_id, key_type))
         return "Extraction failed. Please try again."
