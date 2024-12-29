@@ -5,71 +5,64 @@ class AgentMode(Enum):
     PAGE_FINDER = "page_finder"
 
 class ExtractionPrompts(Enum):
-    SYSTEM = """You are a precise data extraction assistant focused on comprehensive metric extraction. Your task is to:
-    1. Extract ALL instances of metrics that match the requested format
-    2. Group related metrics into complete sets when they appear multiple times
-    3. Use reasonable judgment while maintaining accuracy
+    SYSTEM = """You are a precise data extraction assistant focused on consolidating and deduplicating information. Your task is to:
+    1. Extract and consolidate metrics from all sources
+    2. Remove duplicate entries and redundant information
+    3. Preserve EXACT units and symbols as they appear
     
     Guidelines:
-    - Extract every occurrence of requested metrics from the context
-    - Identify and group related metric sets that belong together
-    - Maintain numerical accuracy when values are explicit
-    - Use clear contextual evidence for values
-    - Keep original units and formats when specified
-    - Mark as "Not Available" only when the value cannot be confidently determined
-    - When multiple instances exist, extract all of them
+    - Consolidate repeated information into single, definitive entries
+    - When conflicting values exist, prefer confirmed/definitive information over rumors
+    - Remove duplicate entries that refer to the same event/metric
+    - Keep ALL units and symbols EXACTLY as they appear (e.g., keep "$15 million" as is)
+    - Never perform unit conversions or reformatting
+    - Mark as "Not Available" only when no reliable value exists
+    - For multiple genuine distinct instances (e.g., different funding rounds), maintain separate entries
     
-    Remember: Focus on finding ALL relevant metric sets while maintaining accuracy."""
+    Remember: Focus on providing clean, deduplicated data while maintaining accuracy."""
 
     REFLECTION = """Analyze the extraction attempt with these key points:
-    - Completeness: Were ALL instances of the metrics found?
-    - Set Grouping: Are related metrics properly grouped together?
-    - Multiple Occurrences: Were repeated metric sets identified?
-    - Accuracy: Are extracted values well-supported by the source?
-    - Evidence: Is there clear contextual support for each value?
+    - Consolidation: Have duplicate entries been properly combined?
+    - Deduplication: Are there still redundant entries that refer to the same event?
+    - Accuracy: Are confirmed facts prioritized over rumors/speculation?
+    - Unit Preservation: Are units and symbols kept exactly as they appear?
     - Format: Does the output follow the example format?
-    - Consistency: Are units and notations consistent across sets?
     
     Focus on identifying:
-    - Missing metric instances or sets
-    - Ungrouped or mismatched metrics
-    - Unsupported values
+    - Remaining duplicate entries
+    - Unconsolidated information
+    - Mixed confirmed/unconfirmed data
     - Format inconsistencies
     
-    Keep reflection focused on extraction completeness and quality (2-3 sentences)."""
+    Keep reflection focused on consolidation quality and accuracy (2-3 sentences)."""
 
     CONFIDENCE = """Rate the extraction confidence on a scale of 0.0 to 1.0.
     Score based on:
-    - Completeness: ALL instances of metrics were found
-    - Set Coverage: Related metrics are properly grouped
-    - Source Support: Values are supported by context
-    - Clarity: Information is clearly identifiable
+    - Consolidation: Information is properly deduplicated
+    - Accuracy: Confirmed facts are prioritized
+    - Unit Preservation: Original units and symbols are maintained
     - Format Alignment: Output matches expected format
     
     Lower score if:
-    - Missing metric instances or sets
-    - Metrics are not properly grouped
-    - Values lack contextual support
-    - Information is ambiguous
-    - Critical metrics are missing
+    - Duplicate entries remain
+    - Rumors are mixed with confirmed facts
+    - Units or symbols were modified
+    - Information is not properly consolidated
     
     Respond with ONLY a number between 0.0 and 1.0."""
 
-    SYNTHESIS = """You are a synthesis expert focused on comprehensive metric extraction. Your task is to:
+    SYNTHESIS = """You are a synthesis expert focused on consolidation and deduplication. Your task is to:
     1. Review all previous extraction attempts
-    2. Identify ALL instances of requested metrics
-    3. Create a final answer that:
-       - Includes every occurrence of metric sets found
-       - Groups related metrics that belong together
-       - Uses well-supported values from the source
-       - Follows the required format consistently
-       - Marks values as "Not Available" only when truly uncertain
-       - Maintains numerical accuracy across all sets
-       - Preserves original units when specified
-       - Uses reasonable contextual interpretation
-       - Clearly separates different metric sets when multiple exist
+    2. Create a final answer that:
+       - Consolidates duplicate information into single entries
+       - Removes redundant entries referring to same events
+       - Prioritizes confirmed facts over speculative information
+       - Preserves ALL original units and symbols exactly as they appear
+       - Never converts or reformats units
+       - Maintains separate entries only for genuinely distinct instances
+       - Marks values as "Not Available" only when no reliable data exists
     
-    Start your response with 'FINAL ANSWER:' and follow the example format for each metric set found."""
+    Start your response with 'FINAL ANSWER:' and ensure each entry represents unique, consolidated information."""
 
 class PageFinderPrompts(Enum):
     SYSTEM = """You are a precise page relevance analyzer. Your task is to:

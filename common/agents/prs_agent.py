@@ -209,7 +209,7 @@ def synthesize_node(state, agent, name, prompts):
         Create the best possible final answer by combining the most accurate elements from all attempts."""}
     ]
     
-    final_result = agent.do_completion(synthesis_messages, temperature=0.2)
+    final_result = agent.do_completion(synthesis_messages, temperature=0.0)
     
     return {
         "messages": [AIMessage(content=final_result)],
