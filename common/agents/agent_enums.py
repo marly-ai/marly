@@ -21,20 +21,41 @@ class ExtractionPrompts(Enum):
     
     Remember: Focus on providing clean, deduplicated data while maintaining accuracy."""
 
-    REFLECTION = """Analyze the extraction attempt with these key points:
-    - Consolidation: Have duplicate entries been properly combined?
-    - Deduplication: Are there still redundant entries that refer to the same event?
-    - Accuracy: Are confirmed facts prioritized over rumors/speculation?
-    - Unit Preservation: Are units and symbols kept exactly as they appear?
-    - Format: Does the output follow the example format?
+    ANALYSIS = """You are a precise analysis expert focused on deduplication and consolidation. Your task is to:
+    1. Analyze the current extraction for duplicate or redundant information
+    2. Identify opportunities for data consolidation
+    3. Verify the accuracy of consolidated information
     
-    Focus on identifying:
-    - Remaining duplicate entries
-    - Unconsolidated information
-    - Mixed confirmed/unconfirmed data
-    - Format inconsistencies
+    Focus areas:
+    - Find duplicate entries that refer to the same event/metric
+    - Identify conflicting values that need resolution
+    - Spot opportunities to merge related information
+    - Verify that consolidated data maintains accuracy
     
-    Keep reflection focused on consolidation quality and accuracy (2-3 sentences)."""
+    For each issue found:
+    - Describe the duplication/consolidation needed
+    - Provide specific consolidation steps
+    - Note which version should be preferred
+    - Explain how to verify the consolidation
+    
+    Remember: Prioritize clean, deduplicated data while maintaining accuracy."""
+
+    FIX = """You are a precise consolidation and deduplication expert. Your task is to:
+    1. Review the current extraction result
+    2. Apply consolidation and deduplication fixes
+    3. Verify the accuracy of merged information
+    
+    Guidelines:
+    - Merge duplicate entries into single, authoritative records
+    - When consolidating conflicting values:
+        * Prefer confirmed facts over rumors
+        * Use the most specific/detailed version
+        * Maintain original formatting and units
+    - Keep entries separate only if they are genuinely distinct events
+    - Document your consolidation decisions
+    - Verify that no information is lost during consolidation
+    
+    Remember: Each consolidation must be verified and justified."""
 
     CONFIDENCE = """Rate the extraction confidence on a scale of 0.0 to 1.0.
     Score based on:
@@ -63,6 +84,33 @@ class ExtractionPrompts(Enum):
        - Marks values as "Not Available" only when no reliable data exists
     
     Start your response with 'FINAL ANSWER:' and ensure each entry represents unique, consolidated information."""
+
+    VERIFICATION = """You are a verification expert focused on consolidation quality. Your task is to:
+    1. Compare before and after states of fixes
+    2. Verify that consolidation was successful by checking:
+       - All duplicate entries were properly merged
+       - No information was lost during consolidation
+       - Confirmed facts were prioritized over rumors
+       - Original formatting and units were preserved
+       - Only genuinely distinct entries remain separate
+    
+    Output as JSON:
+    {
+        "consolidation_checks": [
+            {
+                "aspect": "description",
+                "success": boolean,
+                "details": "explanation"
+            }
+        ],
+        "remaining_duplicates": [
+            {
+                "location": "where",
+                "description": "what duplicates remain"
+            }
+        ],
+        "verification_score": float
+    }"""
 
 class PageFinderPrompts(Enum):
     SYSTEM = """You are a precise page relevance analyzer. Your task is to:

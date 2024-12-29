@@ -6,6 +6,7 @@ from langgraph.graph import StateGraph, END
 import functools
 import logging
 from .agent_enums import AgentMode, ExtractionPrompts, PageFinderPrompts
+import json
 
 load_dotenv()
 
@@ -72,71 +73,79 @@ def analyze_node(state, agent, name, prompts):
     messages = state["messages"]
     last_message = messages[-1].content
     
+    # Analysis focused on deduplication and consolidation
     analysis_messages = [
-        {"role": "system", "content": """You are a precise analysis expert. Your task is to:
-        1. Evaluate the current extraction
-        2. Identify specific issues and improvements
-        3. Generate detailed, actionable solutions
-        
-        For each issue found:
-        - Describe the exact problem
-        - Provide specific solution steps
-        - Note any dependencies or considerations
-        - Explain how to verify the fix
-        
-        For each improvement identified:
-        - Describe what aspect improved
-        - Verify the improvement is correct
-        - Note what should be maintained
-        
-        Focus on:
-        - Consolidation of duplicate information
-        - Accuracy of extracted data
-        - Format consistency
-        - Completeness of required information
-        
-        Remember: Be specific and actionable in your analysis."""},
+        {"role": "system", "content": prompts.ANALYSIS.value},
         {"role": "user", "content": f"""Current extraction to analyze:
         {last_message}
         
         Previous improvements made:
         {chr(10).join(state.get('improvements', []))}
         
-        Analyze this extraction and provide detailed solutions for any issues."""}
+        Analyze this extraction focusing on duplicate entries and consolidation opportunities."""}
     ]
     
     # Use low temperature for precise analysis
     analysis = agent.do_completion(analysis_messages, temperature=0.2)
     
-    # Parse the analysis into structured format
-    solution_messages = [
-        {"role": "system", "content": """Parse the analysis to extract:
-        1. List of specific issues with their solutions
-        2. List of verified improvements
-        
-        Format as JSON with two lists:
+    # Structure the analysis with focus on consolidation
+    structure_messages = [
+        {"role": "system", "content": """Structure the analysis into a detailed JSON format:
         {
-            "issues": [{"issue": "description", "solution": "detailed steps"}],
-            "improvements": ["specific improvement"]
+            "metrics": {
+                "duplicate_count": <number>,
+                "consolidation_opportunities": <number>
+            },
+            "duplicates": [
+                {
+                    "type": "duplicate|conflicting|redundant",
+                    "location": "<field_name>",
+                    "entries": ["<value1>", "<value2>"],
+                    "preferred_value": "<value>",
+                    "reason": "<why_this_value>"
+                }
+            ],
+            "consolidation_steps": [
+                {
+                    "field": "<field_name>",
+                    "action": "merge|select|combine",
+                    "values": ["<value1>", "<value2>"],
+                    "result": "<consolidated_value>",
+                    "verification": "<how_to_verify>"
+                }
+            ]
         }"""},
-        {"role": "user", "content": f"Analysis to parse:\n{analysis}"}
+        {"role": "user", "content": f"Analysis to structure:\n{analysis}"}
     ]
     
-    parsed_result = agent.do_completion(solution_messages, temperature=0.0)
+    structured_result = agent.do_completion(structure_messages, temperature=0.0)
     
     try:
         import json
-        parsed = json.loads(parsed_result)
-        issues = [f"⚠ {item['issue']}\nSolution: {item['solution']}" for item in parsed["issues"]]
-        improvements = [f"✓ {item}" for item in parsed["improvements"]]
-    except:
-        issues = ["⚠ Analysis parsing failed - needs review"]
+        analysis_details = json.loads(structured_result)
+        
+        # Generate human-readable issues focused on consolidation
+        issues = [
+            f"⚠ Duplicate in {dup['location']}: {', '.join(dup['entries'])}\n"
+            f"Preferred: {dup['preferred_value']}\n"
+            f"Reason: {dup['reason']}"
+            for dup in analysis_details.get('duplicates', [])
+        ]
+        
+        improvements = [
+            f"✓ Consolidated {step['field']}: {step['result']}"
+            for step in analysis_details.get('consolidation_steps', [])
+            if step['action'] == 'merge'
+        ]
+    except Exception as e:
+        issues = [f"⚠ Analysis structuring failed: {str(e)}"]
         improvements = []
+        analysis_details = {"metrics": {"duplicate_count": 0, "consolidation_opportunities": 0}}
     
+    # Update state with consolidation information
     current_improvements = state.get("improvements", [])
     current_pending_fixes = state.get("pending_fixes", [])
     
-    # Update improvements and pending fixes
     for improvement in improvements:
         if improvement not in current_improvements:
             current_improvements.append(improvement)
@@ -149,16 +158,20 @@ def analyze_node(state, agent, name, prompts):
         if issue not in current_pending_fixes:
             current_pending_fixes.append(issue)
     
-    # Store full analysis for context
+    # Store analysis details with focus on consolidation
     current_reflections = state.get("reflections", [])
-    current_reflections.append(f"""Analysis {len(current_reflections) + 1}:
+    current_reflections.append(f"""Consolidation Analysis {len(current_reflections) + 1}:
     {analysis}
     
-    Issues Identified:
-    {chr(10).join(issues) if issues else '(No new issues found)'}
+    Duplicates Found:
+    - Count: {analysis_details['metrics']['duplicate_count']}
+    - Consolidation Opportunities: {analysis_details['metrics']['consolidation_opportunities']}
     
-    Improvements Verified:
-    {chr(10).join(improvements) if improvements else '(No new improvements found)'}""")
+    Issues Identified:
+    {chr(10).join(issues) if issues else '(No duplicates found)'}
+    
+    Consolidations Completed:
+    {chr(10).join(improvements) if improvements else '(No consolidations performed)'}""")
     
     return {
         "messages": state["messages"],
@@ -167,7 +180,8 @@ def analyze_node(state, agent, name, prompts):
         "reflections": current_reflections,
         "improvements": current_improvements,
         "pending_fixes": current_pending_fixes,
-        "iterations": state["iterations"]
+        "iterations": state["iterations"],
+        "analysis_details": analysis_details
     }
 
 def confidence_node(state, agent, name, prompts):
@@ -196,60 +210,83 @@ def confidence_node(state, agent, name, prompts):
     }
 
 def fix_node(state, agent, name, prompts):
-    """Fix identified issues using reflection details and pending fixes."""
+    """Fix identified issues with focus on deduplication and consolidation."""
     messages = state["messages"]
     last_message = messages[-1].content
     pending_fixes = state.get("pending_fixes", [])
     reflections = state.get("reflections", [])
+    analysis_details = state.get("analysis_details", {})
     
     if not pending_fixes:
-        return {
-            "messages": state["messages"],
-            "sender": name,
-            "confidence_score": state["confidence_score"],
-            "reflections": reflections,
-            "improvements": state.get("improvements", []),
-            "pending_fixes": [],
-            "iterations": state["iterations"]
-        }
+        return state
+    
+    # Create consolidation instructions
+    consolidation_steps = []
+    if analysis_details and 'consolidation_steps' in analysis_details:
+        for step in analysis_details['consolidation_steps']:
+            consolidation_steps.append(
+                f"Consolidate {step['field']}:\n"
+                f"Values: {', '.join(step['values'])}\n"
+                f"Into: {step['result']}\n"
+                f"Verify by: {step['verification']}"
+            )
     
     fix_messages = [
-        {"role": "system", "content": """You are a precise issue-fixing assistant. Your task is to:
-        1. Review the current extraction result
-        2. Address each identified issue one by one
-        3. Apply fixes while maintaining previous improvements
-        
-        Guidelines:
-        - Focus on fixing ONLY the identified issues
-        - Ensure each fix is properly applied
-        - Maintain all previous improvements
-        - Keep original formatting and units
-        - Verify each fix before moving to the next
-        
-        Remember: Each issue must be explicitly addressed and fixed."""},
+        {"role": "system", "content": prompts.FIX.value},
         {"role": "user", "content": f"""Current extraction:
         {last_message}
         
-        Issues to fix:
-        {chr(10).join(pending_fixes)}
+        Consolidation Steps:
+        {chr(10).join(consolidation_steps) if consolidation_steps else chr(10).join(pending_fixes)}
         
-        Previous reflections:
+        Previous context:
         {chr(10).join(reflections)}
         
-        Fix each issue while maintaining the quality of working elements."""}
+        Apply consolidation steps and verify each change."""}
     ]
     
-    # Use lower temperature for precise fixes
+    # Use low temperature for precise fixes
     fixed_result = agent.do_completion(fix_messages, temperature=0.2)
+    
+    # Verify consolidation results
+    verify_messages = [
+        {"role": "system", "content": prompts.VERIFICATION.value},
+        {"role": "user", "content": f"""Original content:
+        {last_message}
+        
+        Fixed content:
+        {fixed_result}
+        
+        Verify all consolidations were applied correctly."""}
+    ]
+    
+    verification_result = agent.do_completion(verify_messages, temperature=0.0)
+    
+    try:
+        verification = json.loads(verification_result)
+        consolidation_success = sum(1 for check in verification['consolidation_checks'] if check['success'])
+        total_checks = len(verification['consolidation_checks'])
+        success_rate = consolidation_success / total_checks if total_checks > 0 else 0.0
+    except:
+        verification = {
+            "consolidation_checks": [],
+            "remaining_duplicates": [{"type": "verification_failed", "reason": "Could not parse verification"}],
+            "verification_score": 0.0
+        }
+        success_rate = 0.0
     
     return {
         "messages": [AIMessage(content=fixed_result)],
         "sender": name,
-        "confidence_score": state["confidence_score"],
+        "confidence_score": max(state["confidence_score"], success_rate),
         "reflections": reflections,
         "improvements": state.get("improvements", []),
-        "pending_fixes": [],  # Clear pending fixes after applying them
-        "iterations": state["iterations"]
+        "pending_fixes": [f"⚠ Remaining duplicate: {dup['description']}" for dup in verification.get('remaining_duplicates', [])],
+        "iterations": state["iterations"],
+        "analysis_details": {
+            **analysis_details,
+            "consolidation_verification": verification
+        }
     }
 
 def create_router(mode: AgentMode):
