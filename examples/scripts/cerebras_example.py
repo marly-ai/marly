@@ -39,7 +39,7 @@ def process_pdf(pdf_file):
     try:
         pipeline_response = client.pipelines.create(
             api_key=os.getenv("CEREBRAS_API_KEY"),
-            provider_model_name="llama3.1-70b",
+            provider_model_name="llama3.3-70b",
             provider_type="cerebras",
             workloads=[{"raw_data": pdf_content, "schemas": [json.dumps(SCHEMA_1)]}],
         )
