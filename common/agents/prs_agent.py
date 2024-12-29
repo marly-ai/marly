@@ -67,65 +67,98 @@ def agent_node(state, agent, name):
         "iterations": state["iterations"] + 1
     }
 
-def analyze_reflection(reflection: str) -> tuple[list[str], list[str]]:
-    """Analyze a reflection to extract specific issues and improvements."""
-    issues = []
-    improvements = []
-    
-    if "complete" in reflection.lower() and "all metrics" in reflection.lower():
-        improvements.append("✓ All required metrics are now covered")
-    if "format matches" in reflection.lower() or "follows format" in reflection.lower():
-        improvements.append("✓ Output format matches the example exactly")
-    if "consistent" in reflection.lower() and "units" in reflection.lower():
-        improvements.append("✓ Units and notations are consistent")
-    
-    if "missing" in reflection.lower():
-        issues.append("⚠ Some metrics are missing or incomplete")
-    if "format" in reflection.lower() and ("incorrect" in reflection.lower() or "wrong" in reflection.lower()):
-        issues.append("⚠ Format needs adjustment")
-    if "inconsistent" in reflection.lower():
-        issues.append("⚠ Inconsistencies in units or notation")
-    
-    return issues, improvements
-
-def reflection_node(state, agent, name, prompts):
-    """Generate reflections and analyze them for improvements and issues."""
+def analyze_node(state, agent, name, prompts):
+    """Combined reflection and analysis node that evaluates output and generates specific solutions."""
     messages = state["messages"]
     last_message = messages[-1].content
     
-    reflection_messages = [
-        {"role": "system", "content": prompts.REFLECTION.value},
-        {"role": "user", "content": f"Response to reflect on:\n{last_message}"}
+    analysis_messages = [
+        {"role": "system", "content": """You are a precise analysis expert. Your task is to:
+        1. Evaluate the current extraction
+        2. Identify specific issues and improvements
+        3. Generate detailed, actionable solutions
+        
+        For each issue found:
+        - Describe the exact problem
+        - Provide specific solution steps
+        - Note any dependencies or considerations
+        - Explain how to verify the fix
+        
+        For each improvement identified:
+        - Describe what aspect improved
+        - Verify the improvement is correct
+        - Note what should be maintained
+        
+        Focus on:
+        - Consolidation of duplicate information
+        - Accuracy of extracted data
+        - Format consistency
+        - Completeness of required information
+        
+        Remember: Be specific and actionable in your analysis."""},
+        {"role": "user", "content": f"""Current extraction to analyze:
+        {last_message}
+        
+        Previous improvements made:
+        {chr(10).join(state.get('improvements', []))}
+        
+        Analyze this extraction and provide detailed solutions for any issues."""}
     ]
     
-    reflection = agent.do_completion(reflection_messages, temperature=0.3)
+    # Use low temperature for precise analysis
+    analysis = agent.do_completion(analysis_messages, temperature=0.2)
     
-    new_issues, new_improvements = analyze_reflection(reflection)
+    # Parse the analysis into structured format
+    solution_messages = [
+        {"role": "system", "content": """Parse the analysis to extract:
+        1. List of specific issues with their solutions
+        2. List of verified improvements
+        
+        Format as JSON with two lists:
+        {
+            "issues": [{"issue": "description", "solution": "detailed steps"}],
+            "improvements": ["specific improvement"]
+        }"""},
+        {"role": "user", "content": f"Analysis to parse:\n{analysis}"}
+    ]
     
-    current_reflections = state.get("reflections", [])
+    parsed_result = agent.do_completion(solution_messages, temperature=0.0)
+    
+    try:
+        import json
+        parsed = json.loads(parsed_result)
+        issues = [f"⚠ {item['issue']}\nSolution: {item['solution']}" for item in parsed["issues"]]
+        improvements = [f"✓ {item}" for item in parsed["improvements"]]
+    except:
+        issues = ["⚠ Analysis parsing failed - needs review"]
+        improvements = []
+    
     current_improvements = state.get("improvements", [])
     current_pending_fixes = state.get("pending_fixes", [])
     
-    for improvement in new_improvements:
+    # Update improvements and pending fixes
+    for improvement in improvements:
         if improvement not in current_improvements:
             current_improvements.append(improvement)
     
     current_pending_fixes = [fix for fix in current_pending_fixes if not any(
         improvement.lower().replace("✓", "").strip() in fix.lower() 
-        for improvement in new_improvements
+        for improvement in improvements
     )]
-    for issue in new_issues:
+    for issue in issues:
         if issue not in current_pending_fixes:
             current_pending_fixes.append(issue)
     
-    current_reflections.append(f"""Reflection {len(current_reflections) + 1}:
-    {reflection}
-
+    # Store full analysis for context
+    current_reflections = state.get("reflections", [])
+    current_reflections.append(f"""Analysis {len(current_reflections) + 1}:
+    {analysis}
+    
     Issues Identified:
-    {chr(10).join(new_issues) if new_issues else '(No new issues found)'}
-
-    Improvements Made:
-    {chr(10).join(new_improvements) if new_improvements else '(No new improvements found)'}""")
+    {chr(10).join(issues) if issues else '(No new issues found)'}
+    
+    Improvements Verified:
+    {chr(10).join(improvements) if improvements else '(No new improvements found)'}""")
     
     return {
         "messages": state["messages"],
@@ -162,32 +195,93 @@ def confidence_node(state, agent, name, prompts):
         "iterations": state["iterations"]
     }
 
+def fix_node(state, agent, name, prompts):
+    """Fix identified issues using reflection details and pending fixes."""
+    messages = state["messages"]
+    last_message = messages[-1].content
+    pending_fixes = state.get("pending_fixes", [])
+    reflections = state.get("reflections", [])
+    
+    if not pending_fixes:
+        return {
+            "messages": state["messages"],
+            "sender": name,
+            "confidence_score": state["confidence_score"],
+            "reflections": reflections,
+            "improvements": state.get("improvements", []),
+            "pending_fixes": [],
+            "iterations": state["iterations"]
+        }
+    
+    fix_messages = [
+        {"role": "system", "content": """You are a precise issue-fixing assistant. Your task is to:
+        1. Review the current extraction result
+        2. Address each identified issue one by one
+        3. Apply fixes while maintaining previous improvements
+        
+        Guidelines:
+        - Focus on fixing ONLY the identified issues
+        - Ensure each fix is properly applied
+        - Maintain all previous improvements
+        - Keep original formatting and units
+        - Verify each fix before moving to the next
+        
+        Remember: Each issue must be explicitly addressed and fixed."""},
+        {"role": "user", "content": f"""Current extraction:
+        {last_message}
+        
+        Issues to fix:
+        {chr(10).join(pending_fixes)}
+        
+        Previous reflections:
+        {chr(10).join(reflections)}
+        
+        Fix each issue while maintaining the quality of working elements."""}
+    ]
+    
+    # Use lower temperature for precise fixes
+    fixed_result = agent.do_completion(fix_messages, temperature=0.2)
+    
+    return {
+        "messages": [AIMessage(content=fixed_result)],
+        "sender": name,
+        "confidence_score": state["confidence_score"],
+        "reflections": reflections,
+        "improvements": state.get("improvements", []),
+        "pending_fixes": [],  # Clear pending fixes after applying them
+        "iterations": state["iterations"]
+    }
+
 def create_router(mode: AgentMode):
     """Create a router function based on the agent mode."""
-    def router(state) -> Literal["process", "reflect", "score", "synthesize", "__end__"]:
-        messages = state["messages"]
-        last_message = messages[-1].content
+    def router(state) -> Literal["process", "analyze", "fix", "score", "synthesize", "__end__"]:
         iterations = state["iterations"]
         confidence = state["confidence_score"]
+        pending_fixes = state.get("pending_fixes", [])
         
-        min_iterations = 2
-        max_iterations = 3
+        max_iterations = 2
         min_confidence = 0.8
         
-        # After minimum iterations, check if we should synthesize final answer
-        if iterations >= min_iterations and (
-            confidence >= min_confidence or iterations >= max_iterations
-        ):
+        # Check if we've hit max iterations or have sufficient confidence
+        if iterations >= max_iterations or confidence >= min_confidence:
             if state["sender"] != "synthesizer":
                 return "synthesize"
             return "__end__"
         
+        # Main flow: Process -> Analyze -> Fix -> Score -> [Loop or Synthesize]
         if state["sender"] == "user":
             return "process"
         elif state["sender"] == "processor":
-            return "reflect"
-        elif state["sender"] == "reflection":
+            return "analyze"
+        elif state["sender"] == "analyzer":
+            return "fix"
+        elif state["sender"] == "fixer":
             return "score"
+        elif state["sender"] == "scorer":
+            # If score is low and we haven't hit max iterations, loop back to process
+            if confidence < min_confidence and iterations < max_iterations:
+                return "process"
+            return "synthesize"
         else:
             return "process"
     
@@ -228,66 +322,35 @@ def create_graph(client, mode: AgentMode):
     text_processor = create_agent(client, prompts.SYSTEM.value)
     
     processor_node = functools.partial(agent_node, agent=text_processor, name="processor")
-    reflection_processor = functools.partial(reflection_node, agent=client, name="reflection", prompts=prompts)
-    confidence_scorer = functools.partial(confidence_node, agent=client, name="confidence", prompts=prompts)
+    analyzer = functools.partial(analyze_node, agent=client, name="analyzer", prompts=prompts)
+    issue_fixer = functools.partial(fix_node, agent=client, name="fixer", prompts=prompts)
+    confidence_scorer = functools.partial(confidence_node, agent=client, name="scorer", prompts=prompts)
     synthesizer = functools.partial(synthesize_node, agent=client, name="synthesizer", prompts=prompts)
     
     workflow = StateGraph(AgentState)
     
     workflow.add_node("process", processor_node)
-    workflow.add_node("reflect", reflection_processor)
+    workflow.add_node("analyze", analyzer)
+    workflow.add_node("fix", issue_fixer)
     workflow.add_node("score", confidence_scorer)
     workflow.add_node("synthesize", synthesizer)
     
     router = create_router(mode)
     
-    workflow.add_conditional_edges(
-        "process",
-        router,
-        {
-            "process": "process",
-            "reflect": "reflect",
-            "score": "score",
-            "synthesize": "synthesize",
-            "__end__": END,
-        },
-    )
-    
-    workflow.add_conditional_edges(
-        "reflect",
-        router,
-        {
-            "process": "process",
-            "reflect": "reflect",
-            "score": "score",
-            "synthesize": "synthesize",
-            "__end__": END,
-        },
-    )
-    
-    workflow.add_conditional_edges(
-        "score",
-        router,
-        {
-            "process": "process",
-            "reflect": "reflect",
-            "score": "score",
-            "synthesize": "synthesize",
-            "__end__": END,
-        },
-    )
-    
-    workflow.add_conditional_edges(
-        "synthesize",
-        router,
-        {
-            "process": "process",
-            "reflect": "reflect",
-            "score": "score",
-            "synthesize": "synthesize",
-            "__end__": END,
-        },
-    )
+    # Add edges for all nodes
+    for node in ["process", "analyze", "fix", "score", "synthesize"]:
+        workflow.add_conditional_edges(
+            node,
+            router,
+            {
+                "process": "process",
+                "analyze": "analyze",
+                "fix": "fix",
+                "score": "score",
+                "synthesize": "synthesize",
+                "__end__": END,
+            },
+        )
     
     workflow.set_entry_point("process")
     
