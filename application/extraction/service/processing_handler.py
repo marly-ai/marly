@@ -10,7 +10,7 @@ from common.prompts.prompt_enums import PromptType
 from langchain_core.messages import SystemMessage, HumanMessage
 import json
 from common.agents.prs_agent import process_extraction
-from common.agents.agent_enums import AgentMode
+from common.agents.agent_prompt_enums import AgentMode
 
 logger = logging.getLogger(__name__)
 langsmith_client = LangSmithClient()

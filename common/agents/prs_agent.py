@@ -8,19 +8,18 @@ import logging
 import redis
 import json
 import uuid
-from .agent_enums import AgentMode, ExtractionPrompts, PageFinderPrompts
+from .agent_prompt_enums import AgentMode, ExtractionPrompts, PageFinderPrompts
 
 load_dotenv()
 
-# Redis connection
 redis_client = redis.Redis(host='redis', port=6379, db=0)
-REDIS_EXPIRE = 60 * 60  # 1 hour expiry
+REDIS_EXPIRE = 60 * 60
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     sender: str
     confidence_score: float
-    session_id: str  # Added to track Redis keys
+    session_id: str
     iterations: int
 
 def get_redis_key(session_id: str, key_type: str) -> str:
@@ -90,23 +89,21 @@ def get_all_messages(session_id: str) -> list:
 def agent_node(state, agent, name):
     """Process the agent's response and update the state."""
     session_id = state["session_id"]
-    messages = state["messages"]  # Keep original messages
+    messages = state["messages"] 
     
-    # Get only necessary context
     improvements = get_list(session_id, "improvements", -5)
     pending_fixes = get_list(session_id, "pending_fixes")
     
     result = agent({
-        "messages": messages,  # Pass full messages object
+        "messages": messages,
         "improvements": improvements,
         "pending_fixes": pending_fixes
     })
     
-    # Store result in Redis
     store_message(session_id, result)
     
     return {
-        "messages": messages + [AIMessage(content=result)],  # Keep message chain
+        "messages": messages + [AIMessage(content=result)],
         "sender": name,
         "confidence_score": state["confidence_score"],
         "session_id": session_id,
@@ -122,10 +119,8 @@ def analyze_node(state, agent, name, prompts):
     
     last_message = get_last_message(session_id)
     
-    # Get full context for better analysis
     prev_improvements = get_list(session_id, "improvements")
     
-    # Initial deep analysis
     analysis_messages = [
         {"role": "system", "content": prompts.ANALYSIS.value},
         {"role": "user", "content": f"""Current extraction to analyze:
@@ -140,7 +135,6 @@ def analyze_node(state, agent, name, prompts):
     
     analysis = agent.do_completion(analysis_messages, temperature=0.2)
     
-    # Secondary verification analysis
     verification_messages = [
         {"role": "system", "content": """Verify the previous analysis for:
         1. Missed duplicates or conflicts
@@ -158,14 +152,12 @@ def analyze_node(state, agent, name, prompts):
     
     verification = agent.do_completion(verification_messages, temperature=0.1)
     
-    # Process both analyses
     current_improvements = get_list(session_id, "improvements")
     current_pending_fixes = get_list(session_id, "pending_fixes")
     
     new_improvements = []
     new_fixes = []
     
-    # Process both analysis and verification
     for content in [analysis, verification]:
         for line in content.split('\n'):
             line = line.strip()
@@ -178,13 +170,11 @@ def analyze_node(state, agent, name, prompts):
                 if line not in current_pending_fixes and line not in new_fixes:
                     new_fixes.append(line)
     
-    # Batch Redis updates
     if new_improvements:
         store_list(session_id, "improvements", current_improvements + new_improvements)
     if new_fixes:
         store_list(session_id, "pending_fixes", new_fixes)
     
-    # Store detailed reflection
     reflection = f"""Analysis {redis_client.llen(get_redis_key(session_id, 'reflections')) + 1}:
     
     Initial Analysis:
@@ -198,7 +188,6 @@ def analyze_node(state, agent, name, prompts):
     
     redis_client.rpush(get_redis_key(session_id, "reflections"), json.dumps(reflection))
     
-    # Add logging before return
     logger.info(f"Analysis complete: {len(new_fixes)} new issues, {len(new_improvements)} improvements")
     
     return {
@@ -228,7 +217,7 @@ def confidence_node(state, agent, name, prompts):
         confidence = 0.5
     
     return {
-        "messages": messages,  # Keep original messages
+        "messages": messages,
         "sender": name,
         "confidence_score": confidence,
         "session_id": session_id,
@@ -247,7 +236,6 @@ def fix_node(state, agent, name, prompts):
         for fix in pending_fixes:
             logger.info(f"⚠ {fix}")
     
-    # Initial fix attempt
     fix_messages = [
         {"role": "system", "content": prompts.FIX.value},
         {"role": "user", "content": f"""Content to fix:
@@ -261,7 +249,6 @@ def fix_node(state, agent, name, prompts):
     
     fixed_result = agent.do_completion(fix_messages, temperature=0.2)
     
-    # Verify fixes
     verify_messages = [
         {"role": "system", "content": """Verify that all fixes were properly applied:
         1. Check each issue was addressed
@@ -282,15 +269,12 @@ def fix_node(state, agent, name, prompts):
     
     verification = agent.do_completion(verify_messages, temperature=0.1)
     
-    # Store both results and verification in Redis
     store_message(session_id, fixed_result)
     redis_client.rpush(get_redis_key(session_id, "fix_verifications"), 
                       json.dumps({"fixes": pending_fixes, "verification": verification}))
     
-    # Clear pending fixes only after verification
     redis_client.delete(get_redis_key(session_id, "pending_fixes"))
     
-    # Add logging before return
     logger.info("Fix attempt complete")
     logger.info(f"Verification result length: {len(verification.split())}")
     
@@ -311,13 +295,11 @@ def create_router(mode: AgentMode):
         max_iterations = 2
         min_confidence = 0.8
         
-        # Check if we've hit max iterations or have sufficient confidence
         if iterations >= max_iterations or confidence >= min_confidence:
             if state["sender"] != "synthesizer":
                 return "synthesize"
             return "__end__"
         
-        # Main flow: Process -> Analyze -> Fix -> Score -> [Loop or Synthesize]
         if state["sender"] == "user":
             return "process"
         elif state["sender"] == "processor":
@@ -327,7 +309,6 @@ def create_router(mode: AgentMode):
         elif state["sender"] == "fixer":
             return "score"
         elif state["sender"] == "scorer":
-            # If score is low and we haven't hit max iterations, loop back to process
             if confidence < min_confidence and iterations < max_iterations:
                 return "process"
             return "synthesize"
@@ -340,11 +321,9 @@ def synthesize_node(state, agent, name, prompts):
     """Create final answer by synthesizing all iterations and improvements."""
     session_id = state["session_id"]
     
-    # Get only the successful responses and recent improvements
     messages = get_all_messages(session_id)
     improvements = get_list(session_id, "improvements", -5)
     
-    # Final LLM call with focused context
     final_result = agent.do_completion([
         {"role": "system", "content": prompts.SYNTHESIS.value},
         {"role": "user", "content": f"""Best response so far:
@@ -354,7 +333,6 @@ def synthesize_node(state, agent, name, prompts):
         {chr(10).join(improvements)}"""}
     ], temperature=0.0)
     
-    # Store final result
     store_message(session_id, final_result)
     
     return {
@@ -386,7 +364,6 @@ def create_graph(client, mode: AgentMode):
     
     router = create_router(mode)
     
-    # Add edges for all nodes
     for node in ["process", "analyze", "fix", "score", "synthesize"]:
         workflow.add_conditional_edges(
             node,
@@ -411,13 +388,10 @@ def process_extraction(text: str, client, mode: AgentMode) -> str:
     session_id = str(uuid.uuid4())
     
     try:
-        # Store initial message
         store_message(session_id, text, "human")
         
-        # Create graph before using it
         graph = create_graph(client, mode)
         
-        # Execute graph with initial message
         result = graph.invoke({
             "messages": [HumanMessage(content=text)],
             "sender": "user",
@@ -426,19 +400,16 @@ def process_extraction(text: str, client, mode: AgentMode) -> str:
             "iterations": 0
         })
         
-        # Detailed logging of the entire process
         logger.info("\n" + "="*50)
         logger.info(f"AGENT MODE: {mode.value}")
         logger.info("="*50)
         
-        # Log all reflections with iteration markers
         reflections = get_list(session_id, "reflections")
         logger.info("\nPROCESS REFLECTIONS:")
         for i, reflection in enumerate(reflections, 1):
             logger.info(f"\nITERATION {i}:")
             logger.info(reflection)
         
-        # Log improvements made
         improvements = get_list(session_id, "improvements")
         logger.info("\nIMPROVEMENTS MADE:")
         if improvements:
@@ -447,7 +418,6 @@ def process_extraction(text: str, client, mode: AgentMode) -> str:
         else:
             logger.info("(No improvements needed)")
         
-        # Log fix verifications
         fix_verifications = get_list(session_id, "fix_verifications")
         logger.info("\nFIX VERIFICATIONS:")
         for i, verification in enumerate(fix_verifications, 1):
@@ -455,7 +425,6 @@ def process_extraction(text: str, client, mode: AgentMode) -> str:
             logger.info(f"Issues Addressed: {len(verification.get('fixes', []))}")
             logger.info(f"Verification Result: {verification.get('verification', '')}")
         
-        # Log final state
         pending_fixes = get_list(session_id, "pending_fixes")
         logger.info("\nFINAL STATE:")
         logger.info(f"Total Iterations: {result['iterations']}")
@@ -467,13 +436,11 @@ def process_extraction(text: str, client, mode: AgentMode) -> str:
         else:
             logger.info("(No remaining issues)")
         
-        # Log final result
         logger.info("\nFINAL RESULT:")
         final_message = result["messages"][-1].content if result["messages"] else ""
         logger.info(final_message)
         logger.info("="*50 + "\n")
         
-        # Cleanup all Redis keys
         for key_type in ["messages", "improvements", "pending_fixes", "reflections", "fix_verifications"]:
             redis_client.delete(get_redis_key(session_id, key_type))
         
@@ -481,7 +448,6 @@ def process_extraction(text: str, client, mode: AgentMode) -> str:
         
     except Exception as e:
         logger.error(f"Extraction failed: {str(e)}")
-        # Log error state if possible
         try:
             reflections = get_list(session_id, "reflections")
             if reflections:
@@ -490,7 +456,6 @@ def process_extraction(text: str, client, mode: AgentMode) -> str:
         except:
             pass
         
-        # Cleanup Redis keys
         for key_type in ["messages", "improvements", "pending_fixes", "reflections", "fix_verifications"]:
             redis_client.delete(get_redis_key(session_id, key_type))
         return "Extraction failed. Please try again."

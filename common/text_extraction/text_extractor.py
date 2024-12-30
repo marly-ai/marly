@@ -101,7 +101,6 @@ def process_page(client, prompt, page_number: int, page_text: str, formatted_key
             
             response_data = {
                 'response': response,
-                'page_text': page_text,
                 'keywords': formatted_keywords,
                 'timestamp': datetime.now().isoformat(),
                 'is_relevant': "yes" in response[:20].lower()
@@ -113,8 +112,8 @@ def process_page(client, prompt, page_number: int, page_text: str, formatted_key
         logger.error(f"Error processing page {page_number}: {e}")
         return -1, {
             'response': f"Error: {str(e)}",
-            'page_text': page_text,
             'keywords': formatted_keywords,
+            'page_text': page_text,
             'timestamp': datetime.now().isoformat(),
             'is_relevant': False,
             'error': True
