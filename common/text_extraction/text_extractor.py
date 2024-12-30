@@ -9,6 +9,9 @@ import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
 from common.prompts.prompt_enums import PromptType
+import json
+from datetime import datetime
+from common.redis.redis_config import get_redis_connection
 
 load_dotenv()
 
@@ -70,54 +73,113 @@ def extract_page_as_markdown(file_stream: BytesIO, page_number: int) -> str:
         except Exception as e:
             logger.error(f"Failed to remove temporary file {temp_file}: {str(e)}")
 
-def process_page(client, prompt, page_number: int, page_text: str, formatted_keywords: str) -> int:
-    try:
-        raw_payload = prompt.invoke({"first_value": page_text, "second_value": formatted_keywords})
-        
-        messages = []
-        if hasattr(raw_payload, 'to_messages'):
-            for message in raw_payload.to_messages():
-                if isinstance(message, SystemMessage):
-                    messages.append({"role": "system", "content": message.content})
-                elif isinstance(message, HumanMessage):
-                    messages.append({"role": "user", "content": message.content})
-                else:
-                    logger.warning(f"Unexpected message type: {type(message)}")
-        else:
-            logger.warning(f"Unexpected raw_payload format for page {page_number}: {type(raw_payload)}")
-        
-        if messages:
-            response = client.do_completion(messages)
-            logger.info(f"Response for page {page_number}: {response}")
-            if isinstance(response, str) and "yes" in response.lower():
-                logger.info(f"Page {page_number} is relevant according to the model")
-                return page_number
+def preprocess_messages(raw_payload):
+    messages = []
+    if hasattr(raw_payload, 'to_messages'):
+        for message in raw_payload.to_messages():
+            if isinstance(message, SystemMessage):
+                messages.append({"role": "system", "content": message.content})
+            elif isinstance(message, HumanMessage):
+                messages.append({"role": "user", "content": message.content})
             else:
-                logger.info(f"Page {page_number} is not relevant according to the model")
+                logger.warning(f"Unexpected message type: {type(message)}")
+    else:
+        logger.warning(f"Unexpected raw_payload format: {type(raw_payload)}")
+    return messages
+
+def process_page(client, prompt, page_number: int, page_text: str, formatted_keywords: str) -> tuple[int, dict]:
+    try:
+        raw_payload = prompt.invoke({
+            "first_value": page_text, 
+            "second_value": formatted_keywords
+        })
+        
+        processed_messages = preprocess_messages(raw_payload)
+        if processed_messages:
+            response = client.do_completion(processed_messages)
+            logger.info(f"Response for page {page_number}: {response}")
+            
+            response_data = {
+                'response': response,
+                'keywords': formatted_keywords,
+                'timestamp': datetime.now().isoformat(),
+                'is_relevant': "yes" in response[:20].lower()
+            }
+            
+            return (page_number if "yes" in response[:20].lower() else -1), response_data
+            
     except Exception as e:
         logger.error(f"Error processing page {page_number}: {e}")
-    
-    return -1
+        return -1, {
+            'response': f"Error: {str(e)}",
+            'keywords': formatted_keywords,
+            'page_text': page_text,
+            'timestamp': datetime.now().isoformat(),
+            'is_relevant': False,
+            'error': True
+        }
 
 async def find_common_pages(client, file_stream: BytesIO, formatted_keywords: str) -> List[int]:
     try:
         start_time = time.time()
         pdf_reader = PyPDF2.PdfReader(file_stream)
         langsmith_client = Client()
-        prompt = langsmith_client.pull_prompt(PromptType.RELEVANT_PAGE_FINDER.value)
+        prompt = langsmith_client.pull_prompt(PromptType.RELEVANT_PAGE_FINDER_V2.value)
         logger.info(f"MODEL TYPE: {type(client)}")
+
+        run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
 
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor(max_workers=10) as executor:
             tasks = []
             for page_number in range(len(pdf_reader.pages)):
                 page_text = extract_page_as_markdown(file_stream, page_number)
-                task = loop.run_in_executor(executor, process_page, client, prompt, page_number, page_text, formatted_keywords)
+                task = loop.run_in_executor(
+                    executor, 
+                    process_page, 
+                    client, 
+                    prompt, 
+                    page_number, 
+                    page_text, 
+                    formatted_keywords
+                )
                 tasks.append(task)
 
             results = await asyncio.gather(*tasks)
 
-        relevant_pages = [page for page in results if page != -1]
+        # Process results and store in Redis
+        page_responses = {}
+        relevant_pages = []
+        
+        logger.info(f"Processing {len(results)} results")
+        
+        for page_number, response_data in results:
+            page_responses[str(page_number if page_number != -1 else results.index((page_number, response_data)))] = response_data
+            
+            if page_number != -1:
+                relevant_pages.append(page_number)
+
+        logger.info(f"Collected responses for {len(page_responses)} pages")
+
+        if page_responses:
+            try:
+                redis_client = await get_redis_connection()
+                redis_key = f"page_responses:{run_id}"
+                data_to_store = json.dumps(page_responses)
+                
+                await redis_client.set(redis_key, data_to_store)
+                await redis_client.expire(redis_key, 86400)  # 1 day TTL
+                
+                stored_data = await redis_client.get(redis_key)
+                if stored_data:
+                    logger.info(f"Successfully stored and verified data in Redis for run_id: {run_id}")
+                else:
+                    logger.error("Failed to verify data storage in Redis")
+                    
+            except Exception as e:
+                logger.error(f"Redis storage error: {str(e)}")
+        else:
+            logger.warning("No page responses to store in Redis")
 
         end_time = time.time()
         total_time = end_time - start_time

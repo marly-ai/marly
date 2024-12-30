@@ -36,6 +36,7 @@ class GroqModelName(Enum):
 
 class CerebrasModelName(Enum):
     LLAMA_3_1_70B = "llama3.1-70b"
+    LLAMA_3_3_70B = "llama3.3-70b"
     LLAMA_3_1_8B = "llama3.1-8b"
 
 class MistralModelName(Enum):

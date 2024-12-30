@@ -87,6 +87,7 @@ async def process_schema(client, schema_id: str, metric_value: str, schema_keys:
             prompt = langsmith_client.pull_prompt(PromptType.TRANSFORMATION_MARKDOWN.value)
         else:
             prompt = langsmith_client.pull_prompt(PromptType.TRANSFORMATION.value)
+        
         messages = prompt.invoke({
             "first_value": metric_value,
             "second_value": schema_keys

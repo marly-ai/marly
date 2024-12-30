@@ -1,0 +1,8 @@
+redis==5.0.1
+beautifulsoup4==4.12.2
+python-dotenv==1.0.0
+langsmith==0.0.83
+PyPDF2==3.0.1
+markitdown==0.1.0
+langchain-core==0.1.27
+langgraph==0.0.27 
