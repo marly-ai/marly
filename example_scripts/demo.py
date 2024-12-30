@@ -142,12 +142,12 @@ def process_pdf_directory(encoded_pdfs):
                 {
                     "pdf_stream": attention_content,
                     "schemas": [json.dumps(schema_2)]
-                }
-                # {
-                #     "data_source": "web",
-                #     "documents_location": WEBSITE_URL,
-                #     "schemas": [json.dumps(SCHEMA_WEBSITE)],
-                # },
+                },
+                {
+                    "data_source": "web",
+                    "documents_location": WEBSITE_URL,
+                    "schemas": [json.dumps(SCHEMA_WEBSITE)],
+                },
             ],
             additional_params={
                 "azure_endpoint": os.getenv("AZURE_ENDPOINT"),
