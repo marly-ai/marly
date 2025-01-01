@@ -23,6 +23,7 @@ venv
 docs.zip
 archive.zip
 __init__.py
+.DS_Store
 
 # vim temporary files
 *~
